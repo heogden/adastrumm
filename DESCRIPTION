@@ -35,3 +35,5 @@ LinkingTo:
     RcppParallel (>= 5.0.1),
     BH (>= 1.66.0)
 SystemRequirements: GNU make
+Depends: 
+    R (>= 4.0)
