@@ -5,12 +5,12 @@ test_that("simulation from fitted model works", {
     delta <- data_full$delta
     eta <- data_full$eta
 
-    mod <- fit_flexl(data)
+    mod <- fit_adastrumm(data)
 
     set.seed(1)
-    data_sim <- simulate_flexl(mod)
+    data_sim <- simulate_adastrumm(mod)
 
-    mod_sim <- fit_flexl(data_sim)
+    mod_sim <- fit_adastrumm(data_sim)
     expect_equal(mod_sim$k, 2)
 
     expect_gt(cor(mod_sim$par, mod$par), 0.5)

@@ -1,4 +1,4 @@
-#' Fit a flexible model for simple longitudinal data.
+#' Fit an Adaptively-Structure Mixed Model (AdaStruMM)
 #'
 #' @param data A data frame, with columns c (identifying
 #'   the individual subjects), x (the time) and y (the response).
@@ -12,12 +12,12 @@
 #' @examples
 #' data_full <- simulate_1dv(1, -0.5, 0.1, 0.5, 0.1, 20, 10)
 #' data <- data_full$data
-#' mod <- fit_flexl(data)
+#' mod <- fit_adastrumm(data)
 #' @export
-fit_flexl <- function(data, nbasis = 10, kmax = 10,
-                      lsp_poss = -5:15, trace = FALSE) {
+fit_adastrumm <- function(data, nbasis = 10, kmax = 10,
+                          lsp_poss = -5:15, trace = FALSE) {
     if(any(is.na(data)))
-        stop("There are missing values in the data, which flexl cannot handle")
+        stop("There are missing values in the data, which adastrumm cannot handle")
 
     m_y <- mean(data$y)
     s_y <- stats::sd(data$y)

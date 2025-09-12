@@ -1,4 +1,4 @@
-simulate_flexl <- function(mod) {
+simulate_adastrumm <- function(mod) {
     # simulate normalised data, using original x and c
     x_norm <- mod$data$x
     c <- mod$data$c

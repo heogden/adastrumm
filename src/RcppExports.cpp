@@ -13,7 +13,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 
 // loglikelihood_pen
 double loglikelihood_pen(Eigen::VectorXd theta, Eigen::MatrixXd X, Eigen::VectorXd y, std::vector<int> c, double sp, Eigen::MatrixXd S, size_t K);
-RcppExport SEXP _flexl_loglikelihood_pen(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP) {
+RcppExport SEXP _adastrumm_loglikelihood_pen(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -30,7 +30,7 @@ END_RCPP
 }
 // loglikelihood_pen_grad
 NumericVector loglikelihood_pen_grad(Eigen::VectorXd theta, Eigen::MatrixXd X, Eigen::VectorXd y, std::vector<int> c, double sp, Eigen::MatrixXd S, size_t K);
-RcppExport SEXP _flexl_loglikelihood_pen_grad(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP) {
+RcppExport SEXP _adastrumm_loglikelihood_pen_grad(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -47,7 +47,7 @@ END_RCPP
 }
 // loglikelihood_pen_hess
 NumericVector loglikelihood_pen_hess(Eigen::VectorXd theta, Eigen::MatrixXd X, Eigen::VectorXd y, std::vector<int> c, double sp, Eigen::MatrixXd S, size_t K);
-RcppExport SEXP _flexl_loglikelihood_pen_hess(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP) {
+RcppExport SEXP _adastrumm_loglikelihood_pen_hess(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -64,13 +64,13 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_flexl_loglikelihood_pen", (DL_FUNC) &_flexl_loglikelihood_pen, 7},
-    {"_flexl_loglikelihood_pen_grad", (DL_FUNC) &_flexl_loglikelihood_pen_grad, 7},
-    {"_flexl_loglikelihood_pen_hess", (DL_FUNC) &_flexl_loglikelihood_pen_hess, 7},
+    {"_adastrumm_loglikelihood_pen", (DL_FUNC) &_adastrumm_loglikelihood_pen, 7},
+    {"_adastrumm_loglikelihood_pen_grad", (DL_FUNC) &_adastrumm_loglikelihood_pen_grad, 7},
+    {"_adastrumm_loglikelihood_pen_hess", (DL_FUNC) &_adastrumm_loglikelihood_pen_hess, 7},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_flexl(DllInfo *dll) {
+RcppExport void R_init_adastrumm(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }

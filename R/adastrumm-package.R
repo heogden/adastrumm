@@ -2,6 +2,6 @@
 #' @import RcppEigen
 #' @importFrom Rcpp sourceCpp
 #' @importFrom RcppParallel RcppParallelLibs
-#' @useDynLib flexl, .registration = TRUE
+#' @useDynLib adastrumm, .registration = TRUE
 ## usethis namespace: end
 NULL

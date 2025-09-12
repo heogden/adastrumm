@@ -42,7 +42,7 @@ find_sample <- function(id, mod) {
 
 #' Find parametric bootstrap samples from a fitted model
 #'
-#' @param mod The fitted model, output from fit_flexl.
+#' @param mod The fitted model, output from fit_adastrumm.
 #' @param n_samples The number of samples to generate.
 #'
 #' @export

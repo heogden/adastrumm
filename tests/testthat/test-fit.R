@@ -5,7 +5,7 @@ test_that("sensible fit for test data 1 (straight lines)", {
     delta <- data_full$delta
     eta <- data_full$eta
 
-    mod <- fit_flexl(data)
+    mod <- fit_adastrumm(data)
 
     expect_equal(mod$k, 2)
     expect_gt(mod$sp, 1000)
@@ -13,7 +13,7 @@ test_that("sensible fit for test data 1 (straight lines)", {
     library(tidyverse)
     
     pred_data <- bind_cols(x = data$x, c = data$c, eta = eta) %>%
-        mutate(eta_hat = predict_flexl(mod, newdata = list(x = x, c = c)))
+        mutate(eta_hat = predict_adastrumm(mod, newdata = list(x = x, c = c)))
 
     rmse <- sqrt(mean(pred_data$eta_hat - pred_data$eta)^2)
     expect_lt(rmse, 0.1)
@@ -29,19 +29,19 @@ test_that("sensible fit for test data 1 (straight lines)", {
     cor(mod$u[,1], mod$u[,2])
 
     #' check prediction
-    y_hat_data <- predict_flexl(mod, newdata = data)
-    fitted_y <- fitted_flexl(mod)
+    y_hat_data <- predict_adastrumm(mod, newdata = data)
+    fitted_y <- fitted_adastrumm(mod)
     expect_equal(y_hat_data, fitted_y)
 
     
     mu_2_fun <- function(x) {
-        predict_flexl(mod, newdata = data.frame(x = x, c = 2))
+        predict_adastrumm(mod, newdata = data.frame(x = x, c = 2))
     }
 
     newdata <- data.frame(x = seq(min(data$x), max(data$x), length = 10),
                           c = 2)
     d_mu_hat_data_man <- numDeriv::grad(mu_2_fun, newdata$x)
-    d_mu_hat_data <- predict_flexl(mod, newdata = newdata, deriv = TRUE)
+    d_mu_hat_data <- predict_adastrumm(mod, newdata = newdata, deriv = TRUE)
     expect_equal(d_mu_hat_data, d_mu_hat_data_man)
     
     #' look at uncertainty
@@ -54,9 +54,9 @@ test_that("sensible fit for test data 1 (straight lines)", {
                             c = unique(data$c))
 
     pred_data <- x_pred_data  %>%
-        mutate(mu_hat = predict_flexl(mod, newdata = list(x = x, c = c), interval = TRUE,
+        mutate(mu_hat = predict_adastrumm(mod, newdata = list(x = x, c = c), interval = TRUE,
                                       samples = samples),
-               d_mu_hat = predict_flexl(mod, newdata = list(x = x, c = c), deriv = TRUE,
+               d_mu_hat = predict_adastrumm(mod, newdata = list(x = x, c = c), deriv = TRUE,
                                         interval = TRUE, samples = samples)) %>%
         group_by(c) %>%
         mutate(mu = data_full$eta_fun(x, c[1]),
@@ -116,7 +116,7 @@ test_that("sensible fit for test data 2 (not straight lines)", {
         geom_point() +
         facet_wrap(vars(c))
     
-    mod <- fit_flexl(data)
+    mod <- fit_adastrumm(data)
 
     expect_equal(mod$k, 2)
     expect_lt(mod$sp, 1000)
@@ -124,7 +124,7 @@ test_that("sensible fit for test data 2 (not straight lines)", {
     library(tidyverse)
     
     pred_data <- bind_cols(x = data$x, c = data$c, eta = eta) %>%
-        mutate(eta_hat = predict_flexl(mod, newdata = list(x = x, c = c)))
+        mutate(eta_hat = predict_adastrumm(mod, newdata = list(x = x, c = c)))
 
     rmse <- sqrt(mean(pred_data$eta_hat - pred_data$eta)^2)
     expect_lt(rmse, 0.1)
@@ -164,7 +164,7 @@ test_that("chooses a reasonably large sp if have straight lines", {
                          c = 1:n_clusters) %>%
         mutate(eta = (beta_0 + beta_1 * x + u[c]))
 
-    mod <- fit_flexl(data)
+    mod <- fit_adastrumm(data)
 
     expect_gt(mod$sp, 100)
 })
@@ -209,7 +209,7 @@ test_that("gives reasonable fit with tricky blip function", {
                        c = subject)
 
     
-    mod <- fit_flexl(data, nbasis = 30)
+    mod <- fit_adastrumm(data, nbasis = 30)
 
 
     library(tidyverse)
@@ -217,7 +217,7 @@ test_that("gives reasonable fit with tricky blip function", {
     pred_data<- crossing(x = seq(0, 1, length.out = 100),
                          c = 1:n) %>%
         mutate(mu = u[c] * f1(x)) %>%
-        mutate(mu_hat = predict_flexl(mod, newdata = list(x = x, c = c)))
+        mutate(mu_hat = predict_adastrumm(mod, newdata = list(x = x, c = c)))
 
     
     rmse <- sqrt(mean(pred_data$mu_hat - pred_data$mu)^2)
@@ -243,7 +243,7 @@ test_that("fits the sleepstudy data", {
                x = Days)
 
     nbasis <- 15
-    mod <- fit_flexl(data, nbasis = nbasis)
+    mod <- fit_adastrumm(data, nbasis = nbasis)
 
 
     x_pred_data <- crossing(x = seq(from = min(data$x),
@@ -252,7 +252,7 @@ test_that("fits the sleepstudy data", {
                             c = unique(data$c))
 
     pred_data <- x_pred_data  %>%
-        mutate(mu_hat = predict_flexl(mod, newdata = list(x = x, c = c)))
+        mutate(mu_hat = predict_adastrumm(mod, newdata = list(x = x, c = c)))
     
     pred_data %>%
         ggplot(aes(x = x)) +
@@ -279,13 +279,13 @@ test_that("fitted values and predictions don't depend on cluster ordering", {
                    y = Y.sub[!is.na(Y.sub)],
                    x = times[col(Y.sub)[!is.na(Y.sub)]])
 
-    mod <- fit_flexl(data)
+    mod <- fit_adastrumm(data)
 
-    y_hat <- fitted_flexl(mod)
-    y_hat_pred <- predict_flexl(mod, newdata = data)
+    y_hat <- fitted_adastrumm(mod)
+    y_hat_pred <- predict_adastrumm(mod, newdata = data)
     expect_equal(y_hat, y_hat_pred)
 
-    pred_with_interval <- predict_flexl(mod, newdata = data, interval = TRUE)
+    pred_with_interval <- predict_adastrumm(mod, newdata = data, interval = TRUE)
     expect_true(all(pred_with_interval$upper > pred_with_interval$estimate))
     
     #' (previously had problems predicting for cluster 8)
@@ -301,13 +301,13 @@ test_that("fitted values and predictions don't depend on cluster ordering", {
     data_ordered <- data %>%
         arrange(c)
 
-    mod_ordered <- fit_flexl(data_ordered)
-    y_hat_ordered <- fitted_flexl(mod_ordered)
+    mod_ordered <- fit_adastrumm(data_ordered)
+    y_hat_ordered <- fitted_adastrumm(mod_ordered)
     y_hat_8_ordered <- y_hat_ordered[data_ordered$c == 8]
 
     expect_equal(y_hat_8, y_hat_8_ordered)
     
-    y_hat_pred_ordered <- predict_flexl(mod_ordered, newdata = data_ordered)
+    y_hat_pred_ordered <- predict_adastrumm(mod_ordered, newdata = data_ordered)
     y_hat_pred_ordered_8 <- y_hat_pred_ordered[data_ordered$c == 8]
 
     expect_equal(y_hat_pred_8, y_hat_pred_ordered_8)
@@ -316,10 +316,10 @@ test_that("fitted values and predictions don't depend on cluster ordering", {
 test_that("fits for first problem data generated from rs model", {
     data_full <- simulate_rs(1, -1, 2, 1, 0.5, 0, 0.1, 20, 5)
     data <- data_full$data
-    mod <- fit_flexl(data)
+    mod <- fit_adastrumm(data)
 
     pred_data <- data_full$pred_data
-    pred_data$mu_c_hat <- predict_flexl(mod, newdata = pred_data)
+    pred_data$mu_c_hat <- predict_adastrumm(mod, newdata = pred_data)
 
     expect_lt(mean(abs(pred_data$mu_c_hat - pred_data$mu_c)), 1)
 })
@@ -327,11 +327,11 @@ test_that("fits for first problem data generated from rs model", {
 test_that("fits for problem data from 1dv model", {
     data_full <- simulate_1dv(22, -0.5, 0.1, 0.5, 0.1, 20, 10)
     data <- data_full$data
-    mod <- fit_flexl(data)
+    mod <- fit_adastrumm(data)
     expect_equal(mod$k, 2)
     
     pred_data <- data_full$pred_data
-    pred_data$mu_c_hat <- predict_flexl(mod, newdata = pred_data, interval = TRUE)
+    pred_data$mu_c_hat <- predict_adastrumm(mod, newdata = pred_data, interval = TRUE)
 
     expect_lt(mean(abs(pred_data$mu_c_hat$estimate - pred_data$mu_c)), 1)
 

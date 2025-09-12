@@ -1,5 +1,5 @@
-Package: flexl
-Title: Fit Flexible Models for Simple Longitudinal Data
+Package: adastrumm
+Title: Fit an Adaptively-Structured Mixed Model to Simple Clustered Data
 Version: 0.1.0
 Authors@R: 
     person("Helen", "Ogden", email = "heogden12@gmail.com",

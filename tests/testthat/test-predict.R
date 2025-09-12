@@ -22,9 +22,9 @@ test_that("prediction works with unordered data with repeated x values", {
                epsilon = rnorm(length(x_index), 0, sigma),
                y = eta + epsilon)
 
-    mod <- fit_flexl(data)
-    y_hat <- fitted_flexl(mod)
-    y_hat_pred <- predict_flexl(mod, newdata = data)
+    mod <- fit_adastrumm(data)
+    y_hat <- fitted_adastrumm(mod)
+    y_hat_pred <- predict_adastrumm(mod, newdata = data)
 
     expect_equal(y_hat, y_hat_pred)
 })
@@ -36,10 +36,10 @@ test_that("prediction reasonable outside of range of data", {
     delta <- data_full$delta
     eta <- data_full$eta
 
-    mod <- fit_flexl(data)
+    mod <- fit_adastrumm(data)
 
     x <- seq(min(data$x) - 0.1, max(data$x) + 0.1, length.out = 100)
-    y_hat <- predict_flexl(mod, newdata = data.frame(x = x, c = 1))
+    y_hat <- predict_adastrumm(mod, newdata = data.frame(x = x, c = 1))
 
     diffs <- y_hat[-1] - y_hat[-length(y_hat)]
     expect_true(all(diffs >= 0))
@@ -61,8 +61,8 @@ test_that("prediction with confidence interval works in cd4 example", {
                        y = Y.sub[!is.na(Y.sub)],
                        x = times[col(Y.sub)[!is.na(Y.sub)]])
     
-    mod <- fit_flexl(data_cd4)
-    y_hat_pred <- predict_flexl(mod, newdata = data_cd4, interval = TRUE)
+    mod <- fit_adastrumm(data_cd4)
+    y_hat_pred <- predict_adastrumm(mod, newdata = data_cd4, interval = TRUE)
 
     
 

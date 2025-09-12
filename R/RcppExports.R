@@ -2,14 +2,14 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 loglikelihood_pen <- function(theta, X, y, c, sp, S, K) {
-    .Call(`_flexl_loglikelihood_pen`, theta, X, y, c, sp, S, K)
+    .Call(`_adastrumm_loglikelihood_pen`, theta, X, y, c, sp, S, K)
 }
 
 loglikelihood_pen_grad <- function(theta, X, y, c, sp, S, K) {
-    .Call(`_flexl_loglikelihood_pen_grad`, theta, X, y, c, sp, S, K)
+    .Call(`_adastrumm_loglikelihood_pen_grad`, theta, X, y, c, sp, S, K)
 }
 
 loglikelihood_pen_hess <- function(theta, X, y, c, sp, S, K) {
-    .Call(`_flexl_loglikelihood_pen_hess`, theta, X, y, c, sp, S, K)
+    .Call(`_adastrumm_loglikelihood_pen_hess`, theta, X, y, c, sp, S, K)
 }
 

@@ -7,7 +7,7 @@
 find_samples(mod, n_samples)
 }
 \arguments{
-\item{mod}{The fitted model, output from fit_flexl.}
+\item{mod}{The fitted model, output from fit_adastrumm.}
 
 \item{n_samples}{The number of samples to generate.}
 }
