@@ -3,7 +3,7 @@
 
 # adastrumm
 
-The goal of adastrumm is to implement Adaptively-Structure Mixed Models
+The goal of adastrumm is to implement Adaptively-Structured Mixed Models
 for simple clustered data. Given repeated observations on different
 subjects, we model how the mean response for each subject varies with a
 single covariate (e.g., time).
