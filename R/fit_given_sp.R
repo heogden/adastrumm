@@ -38,13 +38,16 @@ find_fit_info <- function(opt, k, basis, sp, data) {
         beta <- find_beta(par_split$alpha, basis$nbasis, k)
         lambda <- colSums(beta^2)
         f_x <- basis$X %*% beta
-        u_hat <- find_u_hat(exp(par_split$lsigma), data, f0_x, f_x)
+        u_hat_full <- find_u_hat(exp(par_split$lsigma), data, f0_x, f_x, var = TRUE)
+        u_hat <- u_hat_full$u_hat
+        var_u_hat <- u_hat_full$var_u_hat
         f <- find_spline_fun(beta, basis)
         par_cluster <- find_par_cluster(par_split$beta0, beta, u_hat)
     } else {
         f <- NULL
         f_x <- matrix(nrow = length(data$x), ncol = 0)
         u_hat <- NULL
+        var_u_hat <- NULL
         beta <- NULL
         lambda <- NULL
         par_cluster <- NULL
@@ -66,6 +69,7 @@ find_fit_info <- function(opt, k, basis, sp, data) {
          f = f,
          f_x = f_x,
          u_hat = u_hat,
+         var_u_hat = var_u_hat,
          lambda = lambda,
          data = data,
          basis = basis)    
