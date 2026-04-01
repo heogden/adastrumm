@@ -158,14 +158,13 @@ find_FVE <- function(mod) {
 }
 
 
-is_k_larger_than_required <- function(mod) {
-    tol <- 1e-3
+is_k_larger_than_required <- function(mod, k_tol) {
     FVE <-  find_FVE(mod)
-    FVE[length(FVE) - 1] > 1 - tol
+    FVE[length(FVE) - 1] > 1 - k_tol
 }
 
 
-fits_given_sp <- function(sp, kmax, data, basis, fits_other_sp = NULL) {
+fits_given_sp <- function(sp, kmax, data, basis, k_tol, fits_other_sp = NULL) {
     fits <- list(fit_0(data, sp, basis))
     for(k in 1:kmax) {
         if(length(fits_other_sp) > k)
@@ -176,7 +175,7 @@ fits_given_sp <- function(sp, kmax, data, basis, fits_other_sp = NULL) {
         fits[[k+1]] <- fit_given_fit_km1(data, sp, k, fits[[k]], basis,
                                          fit_k_other_sp)
         if(k > 1)
-            if(is_k_larger_than_required(fits[[k+1]]))
+            if(is_k_larger_than_required(fits[[k+1]], k_tol))
                 break
     }
     fits

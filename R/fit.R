@@ -1,12 +1,14 @@
 #' Fit an Adaptively-Structure Mixed Model (AdaStruMM)
 #'
-#' @param data A data frame, with columns c (identifying
-#'   the individual subjects), x (the time) and y (the response).
+#' @param data A data frame, with columns c (identifying the
+#'     individual subjects), x (the time) and y (the response).
 #' @param nbasis The number of spline basis functions.
 #' @param kmax The maximum number of functional principal components
-#'   to allow.
-#' @param lsp_poss The grid of possible values to consider for 
-#'   log(gamma), the log of the smoothing parameter.
+#'     to allow.
+#' @param k_tol. The tolerance to use in selecting k, to explain at
+#'     least 1-k of variation in the trajectories.
+#' @param lsp_poss The grid of possible values to consider for
+#'     log(gamma), the log of the smoothing parameter.
 #' @param trace If TRUE, print out extra information.
 #' @return The fitted model.
 #' @examples
@@ -14,7 +16,7 @@
 #' data <- data_full$data
 #' mod <- fit_adastrumm(data)
 #' @export
-fit_adastrumm <- function(data, nbasis = 10, kmax = 10,
+fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-3,
                           lsp_poss = -5:15, trace = FALSE) {
     if(any(is.na(data)))
         stop("There are missing values in the data, which adastrumm cannot handle")
@@ -46,8 +48,8 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10,
         else
             fits_other_sp <- fits_list[[i-1]]
         
-        fits <- fits_given_sp(sp, kmax, data, basis, fits_other_sp)
-        if(is_k_larger_than_required(fits[[length(fits)]]))
+        fits <- fits_given_sp(sp, kmax, data, basis, k_tol, fits_other_sp)
+        if(is_k_larger_than_required(fits[[length(fits)]], k_tol))
             fit <- fits[[length(fits) - 1]]
         else
             fit <- fits[[length(fits)]]

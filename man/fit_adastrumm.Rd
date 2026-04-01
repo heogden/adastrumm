@@ -4,11 +4,18 @@
 \alias{fit_adastrumm}
 \title{Fit an Adaptively-Structure Mixed Model (AdaStruMM)}
 \usage{
-fit_adastrumm(data, nbasis = 10, kmax = 10, lsp_poss = -5:15, trace = FALSE)
+fit_adastrumm(
+  data,
+  nbasis = 10,
+  kmax = 10,
+  k_tol = 0.001,
+  lsp_poss = -5:15,
+  trace = FALSE
+)
 }
 \arguments{
-\item{data}{A data frame, with columns c (identifying
-the individual subjects), x (the time) and y (the response).}
+\item{data}{A data frame, with columns c (identifying the
+individual subjects), x (the time) and y (the response).}
 
 \item{nbasis}{The number of spline basis functions.}
 
@@ -19,6 +26,9 @@ to allow.}
 log(gamma), the log of the smoothing parameter.}
 
 \item{trace}{If TRUE, print out extra information.}
+
+\item{k_tol.}{The tolerance to use in selecting k, to explain at
+least 1-k of variation in the trajectories.}
 }
 \value{
 The fitted model.
