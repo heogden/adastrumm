@@ -159,7 +159,8 @@ find_FVE <- function(mod) {
 
 
 is_k_larger_than_required <- function(mod, k_tol) {
-    mod$lambda[length(mod$lambda)] < k_tol
+    FVE <-  find_FVE(mod)
+    FVE[length(FVE) - 1] > 1 - k_tol
 }
 
 

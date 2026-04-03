@@ -8,7 +8,7 @@ fit_adastrumm(
   data,
   nbasis = 10,
   kmax = 10,
-  k_tol = 1e-06,
+  k_tol = 1e-04,
   lsp_poss = -5:15,
   trace = FALSE
 )
@@ -27,8 +27,8 @@ log(gamma), the log of the smoothing parameter.}
 
 \item{trace}{If TRUE, print out extra information.}
 
-\item{k_tol.}{The tolerance to use in selecting k, don't use
-eigenvalues smaller than k_tol}
+\item{k_tol.}{The tolerance to use in selecting k, to explain at
+least 1-k_tol of the variation in trajectories.}
 }
 \value{
 The fitted model.

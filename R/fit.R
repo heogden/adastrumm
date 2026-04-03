@@ -5,8 +5,8 @@
 #' @param nbasis The number of spline basis functions.
 #' @param kmax The maximum number of functional principal components
 #'     to allow.
-#' @param k_tol. The tolerance to use in selecting k, don't use
-#'     eigenvalues smaller than k_tol
+#' @param k_tol. The tolerance to use in selecting k, to explain at
+#'     least 1-k_tol of the variation in trajectories.
 #' @param lsp_poss The grid of possible values to consider for
 #'     log(gamma), the log of the smoothing parameter.
 #' @param trace If TRUE, print out extra information.
@@ -16,7 +16,7 @@
 #' data <- data_full$data
 #' mod <- fit_adastrumm(data)
 #' @export
-fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-6,
+fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
                           lsp_poss = -5:15, trace = FALSE) {
     if(any(is.na(data)))
         stop("There are missing values in the data, which adastrumm cannot handle")
