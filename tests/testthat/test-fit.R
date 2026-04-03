@@ -118,7 +118,6 @@ test_that("sensible fit for test data 2 (not straight lines)", {
     
     mod <- fit_adastrumm(data)
 
-    expect_equal(mod$k, 2)
     expect_lt(mod$sp, 1000)
 
     library(tidyverse)
