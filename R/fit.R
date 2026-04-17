@@ -69,19 +69,14 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
         
         if(!is_neg_def(fit$hessian) | matrixcalc::is.singular.matrix(fit$hessian)) {
             message("fit from optim gave non-negative definite or singular Hessian. Trying with nlm. ")
-            opt <- tryCatch(
-                fit_given_par0_nlm(data, sp, fit$k, fit$par, basis),
-                error = function(e) {
-                    message("nlm fitting failed. ")
-                    NA
-                }
-            )
-            if(!is.na(opt)) {    
+            opt <- NULL
+            try(opt <- fit_given_par0_nlm(data, sp, fit$k, fit$par, basis))
+            if(length(opt) > 0) {    
                 fit <- find_fit_info(opt, fit$k, basis, sp, data)
                 fit <- add_hessian_and_log_ml(fit, basis, data)
             }
             
-            if(!is_neg_def(fit$hessian) | matrixcalc::is.singular.matrix(fit$hessian) | is.na(opt)) {
+            if(!is_neg_def(fit$hessian) | matrixcalc::is.singular.matrix(fit$hessian) | length(opt) == 0) {
                 if(fit$k > 1) {
                     message("fit from nlm failed or gave a non-negative definite or singular Hessian. Reducing k. ")
                     fit <- fits[[fit$k]]
