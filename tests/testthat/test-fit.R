@@ -335,3 +335,36 @@ test_that("fits for problem data from 1dv model", {
     expect_lt(mean(abs(pred_data$mu_c_hat$estimate - pred_data$mu_c)), 1)
 
 })
+
+test_that("can update model with additional data", {
+    data_full <- simulate_1dv(1, -0.5, 0.5, 0.5, 0.1, 50, 5)
+
+    data <- data_full$data
+
+    library(tidyverse)
+    data_fit1 <- data %>% filter(c <= 49)
+    fit1 <- fit_adastrumm(data_fit1)
+
+    t_full <- system.time(fit_full <- fit_adastrumm(data))
+    t_given_fit1 <- system.time(fit_given_fit1 <- update_adastrumm(data,
+                                                                   prev_fit = fit1))
+    t_given_fit1_fixpar <- system.time(fit_given_fit1_fixpar <-
+                                           update_adastrumm(data, prev_fit = fit1,
+                                                            fix_pop_par = TRUE))
+    expect_lt(t_given_fit1[3], t_full[3])
+
+    expect_lt(t_given_fit1_fixpar[3], t_given_fit1[3])
+
+    pred_data_50 <- data_full$pred_data %>% filter(c == 50)
+
+    preds <- pred_data_50 %>%
+        mutate(mu_hat_full = predict_adastrumm(fit_full, newdata = list(x = x, c = c)),
+               mu_hat_given_fit1 = predict_adastrumm(fit_given_fit1,
+                                                     newdata = list(x = x, c = c)),
+               mu_hat_given_fit1_fixpar = predict_adastrumm(fit_given_fit1_fixpar,
+                                                            newdata = list(x = x, c = c)))
+
+    expect_lt(mean(abs(preds$mu_hat_full - preds$mu_hat_given_fit1)), 0.1)
+    expect_lt(mean(abs(preds$mu_hat_full - preds$mu_hat_given_fit1_fixpar)), 0.1)
+
+})

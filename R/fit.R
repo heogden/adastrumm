@@ -1,3 +1,24 @@
+normalise_data <- function(data, norm = NULL) {
+    if(length(norm) == 0) {
+        m_y <- mean(data$y)
+        s_y <- stats::sd(data$y)
+        
+        m_x <- mean(data$x)
+        s_x <- stats::sd(data$x)
+
+        norm <- list(m_y = m_y, s_y = s_y, m_x = m_x, s_x = s_x)
+    }
+    
+
+    data_norm <- data.frame(y =  (data$y - norm$m_y) / norm$s_y,
+                            x =  (data$x - norm$m_x) / norm$s_x,
+                            c = data$c)
+    
+    list(norm = norm, data = data_norm)
+}
+
+
+
 #' Fit an Adaptively-Structure Mixed Model (AdaStruMM)
 #'
 #' @param data A data frame, with columns c (identifying the
@@ -21,16 +42,9 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
     if(any(is.na(data)))
         stop("There are missing values in the data, which adastrumm cannot handle")
 
-    m_y <- mean(data$y)
-    s_y <- stats::sd(data$y)
-
-    m_x <- mean(data$x)
-    s_x <- stats::sd(data$x)
-
-    norm <- list(m_y = m_y, s_y = s_y, m_x = m_x, s_x = s_x)
-
-    data$y <- (data$y - m_y) / s_y
-    data$x <- (data$x - m_x) / s_x
+    data_norm_full <- normalise_data(data)
+    data <- data_norm_full$data
+    norm <- data_norm_full$norm
     
     basis <- find_orthogonal_spline_basis(nbasis, data$x)
     

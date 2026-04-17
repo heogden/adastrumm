@@ -10,6 +10,12 @@ find_orthogonal_spline_basis <- function(nbasis, x) {
          nbasis = nbasis)
 }
 
+update_basis <- function(basis, x) {
+    basis$X <- orthogonalsplinebasis::evaluate(basis$basis, x = x)
+    basis
+}
+
+
 # if x outside knots, extrapolate constant at nearest knot point, rather than NA
 # (which is the default in orthogonalsplinebasis:::evaluate.SplineBasis
 evaluate_with_extrap <- function(object, x, deriv) {
