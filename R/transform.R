@@ -9,11 +9,15 @@ split_alpha <- function(alpha, nbasis, k) {
     split(alpha, component)
 }
 
+hh_sign <- function(alpha) {
+    if (alpha[1] >= 0) 1 else -1
+}
+
 find_Hstar_mat <- function(alpha) {
     alpha_norm <- sqrt(sum(alpha^2))
 
     u <- alpha
-    u[1] <- u[1] - alpha_norm
+    u[1] <- u[1] + hh_sign(alpha) * alpha_norm
 
     t <- sum(u^2)
     
@@ -46,7 +50,7 @@ find_Hstar <- function(alpha) {
     alpha_norm <- sqrt(sum(alpha^2))
 
     u <- alpha
-    u[1] <- u[1] - alpha_norm
+    u[1] <- u[1] + hh_sign(alpha) * alpha_norm
     t <- sum(u^2)
     gamma <- 2 / t
     
