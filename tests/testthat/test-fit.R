@@ -368,3 +368,47 @@ test_that("can update model with additional data", {
     expect_lt(mean(abs(preds$mu_hat_full - preds$mu_hat_given_fit1_fixpar)), 0.1)
 
 })
+
+
+
+test_that("can find CI in problem case from simulations", {
+    
+    simulate_2re <- function(seed, n_clusters, n_obs_per_cluster, sigma) {
+        set.seed(seed)
+        c <- rep(1:n_clusters, each = n_obs_per_cluster)
+        x <- runif(length(c), 0, 3*pi)
+        
+        u1 <- rnorm(n_clusters)
+        u2 <- rnorm(n_clusters)
+        
+        mu_c <- function(x, c) {
+            (1 + u1[c]) * (x/2 + sin(x)) + u2[c]
+        }
+        
+        pred_data <- tidyr::crossing(x = seq(min(x), max(x), length.out = 100),
+                                     c = 1:n_clusters) %>%
+            dplyr::mutate(mu_c = mu_c(x, c))
+        
+        mu <- (1 + u1[c]) * (x/2 + sin(x)) + u2[c]
+        epsilon <- rnorm(length(mu), sd = sigma)
+        
+        y <- mu + epsilon
+        
+        data <- tibble(c = c,
+                       x = x,
+                       y = y,
+                       mu = mu)
+
+        list(data = data, pred_data = pred_data)
+    }
+    
+    data_full <- simulate_2re(69, n_clusters = 50, n_obs_per_cluster = 3, sigma = 0.1)
+
+    data <- data_full$data
+    pred_data <- data_full$pred_data
+    
+    mod <- fit_adastrumm(data)
+
+    pred_data$mu_c_hat <- predict_adastrumm(mod, newdata = pred_data, interval = TRUE)
+    expect_true(all(!is.na(pred_data$mu_c_hat)))
+})
