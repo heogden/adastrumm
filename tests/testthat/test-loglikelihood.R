@@ -36,3 +36,81 @@ test_that("derivatives of loglikelihood are correct", {
 
 
 })
+
+test_that("checking for discontinuities", {
+
+    nbasis <- 3
+    K <- 2
+
+    X <- diag(nbasis)
+    y <- c(1, 0, 1)
+    cluster <- rep(0L, length(y))
+
+    S <- matrix(0, nbasis, nbasis)
+    sp <- 0
+
+    make_alpha <- function(t) {
+        c(t, 1, 0,   # alpha_1
+          1, 1)      # alpha_2
+    }
+    
+    theta_at_t <- function(t, sigma = 0.2) {
+        beta0 <- rep(0, nbasis)
+        alpha <- make_alpha(t)
+        c(beta0, alpha, log(sigma))
+    }
+
+    l <- function(theta) {
+        loglikelihood_pen(
+            theta,
+            X = X,
+            y = y,
+            c = cluster,
+            sp = sp,
+            S = S,
+            K = K
+        )
+    }
+    
+    ll <- function(t) {
+        l(theta_at_t(t))
+    }
+
+    t_grid <- c(-1e-3, -1e-4, -1e-6, -1e-8, 1e-8, 1e-6, 1e-4, 1e-3)
+
+    l_grid <- sapply(t_grid, ll)
+    plot(t_grid, l_grid, type = "l")
+
+    theta0_pos <- theta_at_t(1e-8)
+    theta0_neg <- theta_at_t(-1e-8)
+
+    opt_pos <- optim(theta0_pos, l, method = "BFGS", control = list(fnscale = -1))
+    opt_neg <- optim(theta0_neg, l, method = "BFGS", control = list(fnscale = -1))
+    #' get convergence to different values
+
+    theta_neg <- opt_neg$par
+    
+    par_split_neg <- split_par(theta_neg, nbasis)
+
+    diag_neg <- householder_diagnostic(
+        alpha = par_split_neg$alpha,
+        nbasis = nbasis,
+        k = K
+    )
+    #' problematic!
+
+    theta_pos <- opt_pos$par
+    
+    par_split_pos <- split_par(theta_pos, nbasis)
+
+    diag_pos <- householder_diagnostic(
+        alpha = par_split_pos$alpha,
+        nbasis = nbasis,
+        k = K
+    )
+    #' fine
+
+    
+
+    
+})

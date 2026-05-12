@@ -96,3 +96,31 @@ find_beta <- function(alpha, nbasis, k) {
     beta
 }
 
+householder_diagnostic <- function(alpha, nbasis, k, eps = .Machine$double.eps) {
+  alpha_list <- split_alpha(alpha, nbasis, k)
+
+  ## Only alpha_1, ..., alpha_{K-1} are used to construct subsequent
+  ## Householder transformations.
+  if (k <= 1) {
+    return(list(
+      min_ratio = Inf,
+      ratios = numeric(0),
+      alpha_norms = numeric(0),
+      alpha_first = numeric(0)
+    ))
+  }
+
+  alpha_used <- alpha_list[seq_len(k - 1)]
+
+  alpha_norms <- vapply(alpha_used, function(a) sqrt(sum(a^2)), numeric(1))
+  alpha_first <- vapply(alpha_used, function(a) a[1], numeric(1))
+
+  ratios <- abs(alpha_first) / pmax(alpha_norms, eps)
+
+  list(
+    min_ratio = min(ratios),
+    ratios = ratios,
+    alpha_norms = alpha_norms,
+    alpha_first = alpha_first
+  )
+}
