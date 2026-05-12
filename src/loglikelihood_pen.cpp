@@ -64,8 +64,11 @@ Eigen::Matrix<T, Eigen::Dynamic, 1> find_beta(const Eigen::Matrix<T, Eigen::Dyna
 
     beta.segment(n_B * k, n_B) = beta_k;
 
-    HouseholderReduced Hstar_k(alpha_k);
-    Hstar_vec.push_back(Hstar_k);
+    if (k < K - 1) {
+      HouseholderReduced Hstar_k(alpha_k);
+      Hstar_vec.push_back(Hstar_k);
+    }
+  
   }
   return beta;
 }
