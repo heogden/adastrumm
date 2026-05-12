@@ -13,7 +13,12 @@ template <typename T>
 Eigen::Matrix<T, Eigen::Dynamic, 1> find_u(const Eigen::Matrix<T, Eigen::Dynamic, 1>& alpha) {
   T alpha_norm = stan::math::sqrt(stan::math::dot_self(alpha));
   Eigen::Matrix<T, Eigen::Dynamic, 1> u = alpha;
-  u(0) -= alpha_norm;
+
+  // Stable Householder sign convention.
+  double s = (stan::math::value_of(alpha(0)) >= 0.0) ? 1.0 : -1.0;
+
+  u(0) += s * alpha_norm;
+  
   return u;
 }
 
