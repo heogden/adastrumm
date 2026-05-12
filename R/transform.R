@@ -88,8 +88,10 @@ find_beta <- function(alpha, nbasis, k) {
             beta_i <- find_beta_i(alpha_i, Hstar_list)
 
         beta[,i] <- beta_i
-        
-        Hstar_list[[i]] <- find_Hstar(alpha_i)
+
+        if(i < k) {
+            Hstar_list[[i]] <- find_Hstar(alpha_i)
+        }
     }
     beta
 }
