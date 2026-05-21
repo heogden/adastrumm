@@ -38,10 +38,21 @@ normalise_data <- function(data, norm = NULL) {
 #' mod <- fit_adastrumm(data)
 #' @export
 fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
-                          lsp_poss = -5:15, trace = FALSE) {
+                          lsp_poss = -5:15, trace = FALSE,
+                          alpha_index = 1) {
     if(any(is.na(data)))
         stop("There are missing values in the data, which adastrumm cannot handle")
 
+    if(alpha_index != as.integer(alpha_index) || alpha_index < 1) {
+        stop("alpha_index must be a positive integer")
+}
+
+    if(alpha_index > nbasis) {
+        stop("alpha_index must be no larger than nbasis")
+    }
+
+    
+    
     data_norm_full <- normalise_data(data)
     data <- data_norm_full$data
     norm <- data_norm_full$norm
@@ -62,7 +73,7 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
         else
             fits_other_sp <- fits_list[[i-1]]
         
-        fits <- fits_given_sp(sp, kmax, data, basis, k_tol, fits_other_sp)
+        fits <- fits_given_sp(sp, kmax, data, basis, k_tol, fits_other_sp, alpha_index = alpha_index)
         if(is_k_larger_than_required(fits[[length(fits)]], k_tol))
             fit <- fits[[length(fits) - 1]]
         else
@@ -84,9 +95,9 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
         if(!is_neg_def(fit$hessian) | matrixcalc::is.singular.matrix(fit$hessian)) {
             message("fit from optim gave non-negative definite or singular Hessian. Trying with nlm. ")
             opt <- NULL
-            try(opt <- fit_given_par0_nlm(data, sp, fit$k, fit$par, basis))
+            try(opt <- fit_given_par0_nlm(data, sp, fit$k, fit$par, basis, fit$alpha_index))
             if(length(opt) > 0) {    
-                fit <- find_fit_info(opt, fit$k, basis, sp, data)
+                fit <- find_fit_info(opt, fit$k, basis, sp, data, fit$alpha_index)
                 fit <- add_hessian_and_log_ml(fit, basis, data)
             }
             

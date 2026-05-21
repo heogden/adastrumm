@@ -10,7 +10,8 @@ fit_adastrumm(
   kmax = 10,
   k_tol = 1e-04,
   lsp_poss = -5:15,
-  trace = FALSE
+  trace = FALSE,
+  alpha_index = 1
 )
 }
 \arguments{

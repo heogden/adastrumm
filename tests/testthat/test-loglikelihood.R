@@ -37,6 +37,39 @@ test_that("derivatives of loglikelihood are correct", {
 
 })
 
+test_that("same beta with different alpha_index gives same penalised log-likelihood", {
+    data <- generate_test_data_1()$data
+    
+    nbasis <- 5
+    k <- 2
+    sp <- 10
+    basis <- find_orthogonal_spline_basis(nbasis, data$x)
+
+    alpha_components <- find_alpha_components(nbasis, k)
+
+    set.seed(1)
+    lsigma <- 1
+    par <- c(rnorm(nbasis + length(alpha_components), sd = 0.1), lsigma)
+    beta0 <- par[1:nbasis]
+    alpha_1 <- par[-c((1:nbasis), length(par))]
+    beta <- find_beta(alpha_1, nbasis, k, 1)
+    alpha_2 <- find_alpha_from_beta(beta, nbasis, k, 2)
+    beta_from_alpha_2 <- find_beta(alpha_2, nbasis, k, 2)
+
+    expect_equal(beta, beta_from_alpha_2)
+
+    theta_1 <- c(beta0, alpha_1, lsigma)
+    theta_2 <- c(beta0, alpha_2, lsigma)
+
+    sp <- 1
+    l_1 <- loglikelihood_pen(theta_1, basis$X, data$y, data$c - 1, sp, basis$S, k, alpha_index = 1)
+    l_2 <- loglikelihood_pen(theta_2, basis$X, data$y, data$c - 1, sp, basis$S, k, alpha_index = 2)
+
+    expect_equal(l_1, l_2)
+
+})
+
+
 test_that("checking for discontinuities", {
 
     nbasis <- 3

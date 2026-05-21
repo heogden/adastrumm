@@ -1,7 +1,8 @@
 add_hessian_and_log_ml <- function(fit, basis, data) {
     fit$hessian <- loglikelihood_pen_hess(fit$par,
                                           X = basis$X, y = data$y, c = data$c - 1,
-                                          sp = fit$sp, S = basis$S, K = fit$k)
+                                          sp = fit$sp, S = basis$S, K = fit$k,
+                                          alpha_index = fit$alpha_index)
     fit$var_par <- tryCatch(solve(-fit$hessian),
                             error = function(cond) {
                                 pracma::pinv(-fit$hessian)
@@ -25,7 +26,7 @@ find_par_cluster <- function(beta0, beta, u_hat) {
 }
 
 
-find_fit_info <- function(opt, k, basis, sp, data) {
+find_fit_info <- function(opt, k, basis, sp, data, alpha_index) {
     par <- opt$par
     l_pen <- opt$value
     par_split <- split_par(par, basis$nbasis)
@@ -35,7 +36,7 @@ find_fit_info <- function(opt, k, basis, sp, data) {
     f0 <- find_spline_fun(par_split$beta0, basis)
     
     if(k > 0) {
-        beta <- find_beta(par_split$alpha, basis$nbasis, k)
+        beta <- find_beta(par_split$alpha, basis$nbasis, k, alpha_index)
         lambda <- colSums(beta^2)
         f_x <- basis$X %*% beta
         u_hat_full <- find_u_hat(exp(par_split$lsigma), data, f0_x, f_x, var = TRUE)
@@ -56,6 +57,7 @@ find_fit_info <- function(opt, k, basis, sp, data) {
     list(k = k,
          sp = sp,
          par = par,
+         alpha_index = alpha_index,
          l_pen = l_pen,
          opt = opt,
          beta0 = par_split$beta0,
@@ -75,27 +77,28 @@ find_fit_info <- function(opt, k, basis, sp, data) {
          basis = basis)    
 }
 
-fit_given_par0 <- function(data, sp, k, par0, basis) {
+fit_given_par0 <- function(data, sp, k, par0, basis, alpha_index) {
      opt <- stats::optim(par0, loglikelihood_pen, loglikelihood_pen_grad,
                          X = basis$X, y = data$y, c = data$c - 1,
-                         sp = sp, S = basis$S, K = k,
+                         sp = sp, S = basis$S, K = k, alpha_index = alpha_index,
                          method = "BFGS", control = list(fnscale = -1, maxit = 10000))
     if(opt$convergence != 0)
         warning("optim has not converged")
-     fit <- find_fit_info(opt, k, basis, sp, data)
+     fit <- find_fit_info(opt, k, basis, sp, data, alpha_index)
     
      fit
 }
 
-fit_given_par0_nlm <- function(data, sp, k, par0, basis) {
+fit_given_par0_nlm <- function(data, sp, k, par0, basis, alpha_index) {
     ml <- function(par) {
         result <- -loglikelihood_pen(par, X = basis$X, y = data$y,
                                      c = data$c - 1,
                                      sp = sp, S = basis$S,
-                                     K = k)
+                                     K = k, alpha_index = alpha_index)
         gr <- -loglikelihood_pen_grad(par,
                                       X = basis$X, y = data$y, c = data$c - 1,
-                                      sp = sp, S = basis$S, K = k)
+                                      sp = sp, S = basis$S, K = k,
+                                      alpha_index = alpha_index)
         attr(result, "gradient") <- gr
         result
     }
@@ -110,7 +113,7 @@ fit_given_par0_nlm <- function(data, sp, k, par0, basis) {
 
 
 # Fit the mean-only model
-fit_0 <- function(data, sp, basis) {
+fit_0 <- function(data, sp, basis, alpha_index = 1) {
     X_0 <- basis$X
     
     Xt_y <- crossprod(X_0, data$y)
@@ -124,7 +127,7 @@ fit_0 <- function(data, sp, basis) {
 
     par0 <- c(beta_0, log(sigma))
     
-    fit_given_par0(data, sp, 0, par0, basis)
+    fit_given_par0(data, sp, 0, par0, basis, alpha_index)
 }
 
 
@@ -146,9 +149,20 @@ find_par0_given_fit_km1 <- function(fit_km1, k, nbasis, fit_k_other_sp = NULL) {
 
 
 # fit model with k eigenfunctions, given model fit with k - 1 eigenfunctions, same sp
-fit_given_fit_km1 <- function(data, sp, k, fit_km1, basis, fit_k_other_sp = NULL) {
+fit_given_fit_km1 <- function(data, sp, k, fit_km1, basis, fit_k_other_sp = NULL,
+                              alpha_index) {
+    if(!is.null(fit_km1$alpha_index) && fit_km1$alpha_index != alpha_index) {
+        stop("fit_km1 was fitted with a different alpha_index")
+    }
+
+    if(!is.null(fit_k_other_sp) &&
+       !is.null(fit_k_other_sp$alpha_index) &&
+       fit_k_other_sp$alpha_index != alpha_index) {
+        stop("fit_k_other_sp was fitted with a different alpha_index")
+    }
+    
     par0 <- find_par0_given_fit_km1(fit_km1, k, basis$nbasis, fit_k_other_sp)        
-    fit_given_par0(data, sp, k, par0, basis)
+    fit_given_par0(data, sp, k, par0, basis, alpha_index)
    
 }
 
@@ -164,7 +178,8 @@ is_k_larger_than_required <- function(mod, k_tol) {
 }
 
 
-fits_given_sp <- function(sp, kmax, data, basis, k_tol, fits_other_sp = NULL) {
+fits_given_sp <- function(sp, kmax, data, basis, k_tol, fits_other_sp = NULL,
+                          alpha_index) {
     fits <- list(fit_0(data, sp, basis))
     for(k in 1:kmax) {
         if(length(fits_other_sp) > k)
@@ -173,7 +188,7 @@ fits_given_sp <- function(sp, kmax, data, basis, k_tol, fits_other_sp = NULL) {
             fit_k_other_sp <- NULL
         
         fits[[k+1]] <- fit_given_fit_km1(data, sp, k, fits[[k]], basis,
-                                         fit_k_other_sp)
+                                         fit_k_other_sp, alpha_index)
         if(k > 1)
             if(is_k_larger_than_required(fits[[k+1]], k_tol))
                 break

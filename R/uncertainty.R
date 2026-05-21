@@ -24,7 +24,7 @@ find_sample <- function(id, mod) {
     f0_x <- mod$basis$X %*% par_split$beta0
 
     if(mod$k > 0) {
-        beta <- find_beta(par_split$alpha, mod$basis$nbasis, mod$k)
+        beta <- find_beta(par_split$alpha, mod$basis$nbasis, mod$k, mod$alpha_index)
         f_x <- mod$basis$X %*% beta
     } else {
         beta <- matrix(nrow = mod$basis$nbasis, ncol = 0)

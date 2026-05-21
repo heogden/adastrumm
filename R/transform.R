@@ -9,26 +9,26 @@ split_alpha <- function(alpha, nbasis, k) {
     split(alpha, component)
 }
 
-hh_sign <- function(alpha) {
-    if (alpha[1] >= 0) 1 else -1
+hh_sign <- function(alpha, alpha_index) {
+    if (alpha[alpha_index] >= 0) 1 else -1
 }
 
-find_Hstar_mat <- function(alpha) {
+find_Hstar_mat <- function(alpha, alpha_index) {
     alpha_norm <- sqrt(sum(alpha^2))
 
     u <- alpha
-    u[1] <- u[1] + hh_sign(alpha) * alpha_norm
+    u[alpha_index] <- u[alpha_index] + hh_sign(alpha, alpha_index) * alpha_norm
 
     t <- sum(u^2)
     
     gamma <- 2 / t
 
     H <- diag(nrow = length(u)) - gamma * outer(u, u)
-    H[ , -1, drop = FALSE]
+    H[ , -alpha_index, drop = FALSE]
 }
 
 
-find_T_list <- function(alpha, nbasis, k) {
+find_T_list <- function(alpha, nbasis, k, alpha_index = 1) {
     alpha_list <- split_alpha(alpha, nbasis, k)
 
     T_list <- list()
@@ -37,7 +37,7 @@ find_T_list <- function(alpha, nbasis, k) {
     
     if(k > 1) {
         for(j in 2:k) {
-            T_list[[j]] <- T_list[[j-1]] %*% find_Hstar_mat(alpha_list[[j-1]])
+            T_list[[j]] <- T_list[[j-1]] %*% find_Hstar_mat(alpha_list[[j-1]], alpha_index)
         }
     }
     
@@ -46,21 +46,27 @@ find_T_list <- function(alpha, nbasis, k) {
 
 
 ## TODO:: could get transform from C++ code instead
-find_Hstar <- function(alpha) {
+find_Hstar <- function(alpha, alpha_index) {
     alpha_norm <- sqrt(sum(alpha^2))
 
     u <- alpha
-    u[1] <- u[1] + hh_sign(alpha) * alpha_norm
+    u[alpha_index] <- u[alpha_index] + hh_sign(alpha, alpha_index) * alpha_norm
     t <- sum(u^2)
     gamma <- 2 / t
     
-    list(u = u, gamma = gamma)
+    list(u = u, gamma = gamma, alpha_index = alpha_index)
 }
 
 
 find_Hstar_x <- function(Hstar, x) {
-    a <- sum(Hstar$u[-1] * x)
-    c(0, x) - a * Hstar$gamma * Hstar$u
+    alpha_index <- Hstar$alpha_index
+
+    x_ext <- numeric(length(x) + 1)
+    x_ext[-alpha_index] <- x
+
+    a <- sum(Hstar$u * x_ext)
+
+    x_ext - a * Hstar$gamma * Hstar$u
 }
 
 
@@ -75,13 +81,18 @@ find_beta_i <- function(alpha_i, Hstar_list) {
     s_j
 }
 
-find_beta <- function(alpha, nbasis, k) {
+find_beta <- function(alpha, nbasis, k, alpha_index = 1) {
     component <- find_alpha_components(nbasis, k)
     Hstar_list <- list()
     beta <- matrix(nrow = nbasis, ncol = k)
         
     for(i in 1:k) {
         alpha_i <- alpha[component == i]
+
+        if(alpha_index < 1 || alpha_index > length(alpha_i)) {
+            stop("alpha_index must be between 1 and the length of each alpha block")
+        }
+        
         if(i == 1)
             beta_i <- alpha_i
         else
@@ -90,13 +101,15 @@ find_beta <- function(alpha, nbasis, k) {
         beta[,i] <- beta_i
 
         if(i < k) {
-            Hstar_list[[i]] <- find_Hstar(alpha_i)
+            Hstar_list[[i]] <- find_Hstar(alpha_i, alpha_index)
         }
     }
     beta
 }
 
-householder_diagnostic <- function(alpha, nbasis, k, eps = .Machine$double.eps) {
+householder_diagnostic <- function(alpha, nbasis, k,
+                                   alpha_index = 1,
+                                   eps = .Machine$double.eps) {
   alpha_list <- split_alpha(alpha, nbasis, k)
 
   ## Only alpha_1, ..., alpha_{K-1} are used to construct subsequent
@@ -113,14 +126,44 @@ householder_diagnostic <- function(alpha, nbasis, k, eps = .Machine$double.eps) 
   alpha_used <- alpha_list[seq_len(k - 1)]
 
   alpha_norms <- vapply(alpha_used, function(a) sqrt(sum(a^2)), numeric(1))
-  alpha_first <- vapply(alpha_used, function(a) a[1], numeric(1))
+  alpha_selected <- vapply(alpha_used, function(a) a[alpha_index], numeric(1))
 
-  ratios <- abs(alpha_first) / pmax(alpha_norms, eps)
+  ratios <- abs(alpha_selected) / pmax(alpha_norms, eps)
 
   list(
     min_ratio = min(ratios),
     ratios = ratios,
     alpha_norms = alpha_norms,
-    alpha_first = alpha_first
+    alpha_selected = alpha_selected,
+    alpha_index = alpha_index
   )
+}
+
+find_alpha_from_beta <- function(beta, nbasis, k, alpha_index = 1) {
+    if(is.vector(beta)) {
+        beta <- matrix(beta, nrow = nbasis, ncol = k)
+    }
+
+    stopifnot(nrow(beta) == nbasis, ncol(beta) == k)
+
+    alpha_list <- vector("list", k)
+    Hstar_list <- vector("list", max(k - 1, 0))
+
+    for(i in seq_len(k)) {
+        x <- beta[, i]
+
+        if(i > 1) {
+            for(j in seq_len(i - 1)) {
+                x <- as.vector(t(Hstar_list[[j]]) %*% x)
+            }
+        }
+
+        alpha_list[[i]] <- x
+
+        if(i < k) {
+            Hstar_list[[i]] <- find_Hstar_mat(x, alpha_index)
+        }
+    }
+
+    unlist(alpha_list, use.names = FALSE)
 }
