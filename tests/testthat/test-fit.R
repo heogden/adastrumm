@@ -7,16 +7,23 @@ test_that("sensible fit for test data 1 (straight lines)", {
 
     mod <- fit_adastrumm(data)
 
+    mod_2 <- fit_adastrumm(data, alpha_index = 2)
+
+
     expect_equal(mod$k, 2)
     expect_gt(mod$sp, 1000)
 
     library(tidyverse)
     
     pred_data <- bind_cols(x = data$x, c = data$c, eta = eta) %>%
-        mutate(eta_hat = predict_adastrumm(mod, newdata = list(x = x, c = c)))
+        mutate(eta_hat = predict_adastrumm(mod, newdata = list(x = x, c = c)),
+               eta_hat_2 = predict_adastrumm(mod_2, newdata = list(x = x, c = c)))
 
     rmse <- sqrt(mean(pred_data$eta_hat - pred_data$eta)^2)
     expect_lt(rmse, 0.1)
+
+    rmse_2 <- sqrt(mean(pred_data$eta_hat_2 - pred_data$eta)^2)
+    expect_lt(abs(rmse-rmse_2), 0.01)
 
     pred_data %>%
         ggplot(aes(x = x)) +

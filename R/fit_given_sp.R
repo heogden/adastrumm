@@ -180,7 +180,7 @@ is_k_larger_than_required <- function(mod, k_tol) {
 
 fits_given_sp <- function(sp, kmax, data, basis, k_tol, fits_other_sp = NULL,
                           alpha_index) {
-    fits <- list(fit_0(data, sp, basis))
+    fits <- list(fit_0(data, sp, basis, alpha_index))
     for(k in 1:kmax) {
         if(length(fits_other_sp) > k)
             fit_k_other_sp <- fits_other_sp[[k+1]]
