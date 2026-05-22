@@ -229,7 +229,10 @@ double loglikelihood_pen(Eigen::VectorXd theta,
 			 Eigen::MatrixXd S,
 			 size_t K,
 			 size_t alpha_index) {
-
+  if(alpha_index < 1) {
+    throw std::runtime_error("alpha_index must be at least 1");
+  }
+  
   size_t alpha_index0 = alpha_index - 1;
   
   loglikp_func lf(X, y, c, sp, S, K, alpha_index0);
@@ -246,6 +249,10 @@ NumericVector loglikelihood_pen_grad(Eigen::VectorXd theta,
 				     Eigen::MatrixXd S,
 				     size_t K,
 				     size_t alpha_index) {
+  if(alpha_index < 1) {
+    throw std::runtime_error("alpha_index must be at least 1");
+  }
+  
   size_t alpha_index0 = alpha_index - 1;
   
   // declarations
@@ -273,6 +280,10 @@ NumericVector loglikelihood_pen_hess(Eigen::VectorXd theta,
 				     Eigen::MatrixXd S,
 				     size_t K,
 				     size_t alpha_index) {
+  if(alpha_index < 1) {
+    throw std::runtime_error("alpha_index must be at least 1");
+  }
+  
   size_t alpha_index0 = alpha_index - 1;
   
   // declarations

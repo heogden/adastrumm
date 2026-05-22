@@ -12,6 +12,8 @@ fit_adastrumm(
   lsp_poss = -5:15,
   trace = FALSE,
   alpha_index = 1,
+  auto_alpha = TRUE,
+  alpha_tol = 0.01,
   normalise = TRUE
 )
 }
@@ -28,6 +30,18 @@ to allow.}
 log(gamma), the log of the smoothing parameter.}
 
 \item{trace}{If TRUE, print out extra information.}
+
+\item{alpha_index}{Initial Householder reference coordinate to use
+for the alpha parameterisation. Defaults to 1.}
+
+\item{auto_alpha}{Logical; if TRUE, automatically switches alpha
+parameterisation when the current Householder chart appears
+poorly conditioned.}
+
+\item{alpha_tol}{Threshold for the Householder diagnostic used to
+trigger automatic alpha-parameterisation switching.}
+
+\item{normalise}{Logical; if TRUE, automatically normalise the data (response and covariate) to mean 0, variance 1.}
 
 \item{k_tol.}{The tolerance to use in selecting k, to explain at
 least 1-k_tol of the variation in trajectories.}

@@ -31,6 +31,14 @@ normalise_data <- function(data, norm = NULL) {
 #' @param lsp_poss The grid of possible values to consider for
 #'     log(gamma), the log of the smoothing parameter.
 #' @param trace If TRUE, print out extra information.
+#' @param alpha_index Initial Householder reference coordinate to use
+#'     for the alpha parameterisation. Defaults to 1.
+#' @param auto_alpha Logical; if TRUE, automatically switches alpha
+#'     parameterisation when the current Householder chart appears
+#'     poorly conditioned.
+#' @param alpha_tol Threshold for the Householder diagnostic used to
+#'     trigger automatic alpha-parameterisation switching.
+#' @param normalise Logical; if TRUE, automatically normalise the data (response and covariate) to mean 0, variance 1.
 #' @return The fitted model.
 #' @examples
 #' data_full <- simulate_1dv(1, -0.5, 0.1, 0.5, 0.1, 20, 10)
@@ -39,7 +47,10 @@ normalise_data <- function(data, norm = NULL) {
 #' @export
 fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
                           lsp_poss = -5:15, trace = FALSE,
-                          alpha_index = 1, normalise = TRUE) {
+                          alpha_index = 1,
+                          auto_alpha = TRUE,
+                          alpha_tol = 1e-2,
+                          normalise = TRUE) {
     if(any(is.na(data)))
         stop("There are missing values in the data, which adastrumm cannot handle")
 
@@ -78,24 +89,39 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
         else
             fits_other_sp <- fits_list[[i-1]]
         
-        fits <- fits_given_sp(sp, kmax, data, basis, k_tol, fits_other_sp, alpha_index = alpha_index)
+        fits <- fits_given_sp(
+            sp = sp,
+            kmax = kmax,
+            data = data,
+            basis = basis,
+            k_tol = k_tol,
+            fits_other_sp = fits_other_sp,
+            alpha_index = alpha_index,
+            auto_alpha = auto_alpha,
+            alpha_tol = alpha_tol
+        )
+        
         if(is_k_larger_than_required(fits[[length(fits)]], k_tol))
             fit <- fits[[length(fits) - 1]]
         else
             fit <- fits[[length(fits)]]
                
-
-        fits_list[[i]] <- fits
                                         
         if(trace)
             cat("k = ", fit$k, "\n")
         fit <- add_hessian_and_log_ml(fit, basis, data)
-
-        if(trace) {
-            cat("Hessian is: \n")
-            print(fit$hessian)
-        }
         
+        fit <- maybe_reparameterise_after_hessian(
+            fit = fit,
+            data = data,
+            sp = sp,
+            basis = basis,
+            alpha_tol = alpha_tol,
+            auto_alpha = auto_alpha
+        )
+
+        fits[[fit$k + 1]] <- fit
+        fits_list[[i]] <- fits
         
         if(!is_neg_def(fit$hessian) | matrixcalc::is.singular.matrix(fit$hessian)) {
             message("fit from optim gave non-negative definite or singular Hessian. Trying with nlm. ")
@@ -104,6 +130,16 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
             if(length(opt) > 0) {    
                 fit <- find_fit_info(opt, fit$k, basis, sp, data, fit$alpha_index)
                 fit <- add_hessian_and_log_ml(fit, basis, data)
+                fit <- maybe_reparameterise_after_hessian(
+                    fit = fit,
+                    data = data,
+                    sp = sp,
+                    basis = basis,
+                    alpha_tol = alpha_tol,
+                    auto_alpha = auto_alpha
+                )
+                fits[[fit$k + 1]] <- fit
+                fits_list[[i]] <- fits
             }
             
             if(!is_neg_def(fit$hessian) | matrixcalc::is.singular.matrix(fit$hessian) | length(opt) == 0) {
@@ -111,6 +147,8 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
                     message("fit from nlm failed or gave a non-negative definite or singular Hessian. Reducing k. ")
                     fit <- fits[[fit$k]]
                     fit <- add_hessian_and_log_ml(fit, basis, data)
+                    fits[[fit$k + 1]] <- fit
+                    fits_list[[i]] <- fits
                 }
 
             }

@@ -77,6 +77,147 @@ find_fit_info <- function(opt, k, basis, sp, data, alpha_index) {
          basis = basis)    
 }
 
+
+maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
+                                               alpha_tol = 1e-2,
+                                               auto_alpha = TRUE) {
+    if(!auto_alpha || fit$k <= 1) {
+        return(fit)
+    }
+
+    bad_hessian <- !is_neg_def(fit$hessian) ||
+        matrixcalc::is.singular.matrix(fit$hessian)
+
+    diag <- householder_diagnostic(
+        fit$alpha,
+        nbasis = basis$nbasis,
+        k = fit$k,
+        alpha_index = fit$alpha_index
+    )
+
+    bad_chart <- diag$min_ratio < alpha_tol
+
+    if(!bad_hessian && !bad_chart) {
+        return(fit)
+    }
+
+    alpha_index_new <- choose_alpha_index_from_beta(
+        fit$beta,
+        nbasis = basis$nbasis,
+        k = fit$k
+    )
+
+    if(alpha_index_new == fit$alpha_index) {
+        return(fit)
+    }
+
+    par0_new <- par_from_beta_parameterisation(
+        beta0 = fit$beta0,
+        beta = fit$beta,
+        lsigma = fit$lsigma,
+        nbasis = basis$nbasis,
+        k = fit$k,
+        alpha_index = alpha_index_new
+    )
+
+    fit_new <- fit_given_par0(
+        data = data,
+        sp = sp,
+        k = fit$k,
+        par0 = par0_new,
+        basis = basis,
+        alpha_index = alpha_index_new
+    )
+
+    add_hessian_and_log_ml(fit_new, basis, data)
+}
+
+
+maybe_reparameterise_and_refit <- function(fit, data, sp, basis,
+                                           alpha_tol = 1e-2,
+                                           auto_alpha = TRUE) {
+    if(!auto_alpha || fit$k <= 1) {
+        return(fit)
+    }
+
+    diag <- householder_diagnostic(
+        fit$alpha,
+        nbasis = basis$nbasis,
+        k = fit$k,
+        alpha_index = fit$alpha_index
+    )
+
+    if(diag$min_ratio >= alpha_tol) {
+        return(fit)
+    }
+
+    alpha_index_new <- choose_alpha_index_from_beta(
+        fit$beta,
+        nbasis = basis$nbasis,
+        k = fit$k
+    )
+
+    if(alpha_index_new == fit$alpha_index) {
+        return(fit)
+    }
+
+    par0_new <- par_from_beta_parameterisation(
+        beta0 = fit$beta0,
+        beta = fit$beta,
+        lsigma = fit$lsigma,
+        nbasis = basis$nbasis,
+        k = fit$k,
+        alpha_index = alpha_index_new
+    )
+
+    fit_given_par0(
+        data = data,
+        sp = sp,
+        k = fit$k,
+        par0 = par0_new,
+        basis = basis,
+        alpha_index = alpha_index_new
+    )
+}
+
+fit_given_start_beta <- function(data, sp, k,
+                                 beta0, beta, lsigma,
+                                 basis,
+                                 alpha_index = 1,
+                                 auto_alpha = TRUE,
+                                 alpha_tol = 1e-2) {
+    start <- maybe_switch_alpha_index_start(
+        beta0 = beta0,
+        beta = beta,
+        lsigma = lsigma,
+        basis = basis,
+        k = k,
+        alpha_index = alpha_index,
+        alpha_tol = alpha_tol,
+        auto_alpha = auto_alpha
+    )
+
+    fit <- fit_given_par0(
+        data = data,
+        sp = sp,
+        k = k,
+        par0 = start$par0,
+        basis = basis,
+        alpha_index = start$alpha_index
+    )
+
+    fit <- maybe_reparameterise_and_refit(
+        fit = fit,
+        data = data,
+        sp = sp,
+        basis = basis,
+        alpha_tol = alpha_tol,
+        auto_alpha = auto_alpha
+    )
+
+    fit
+}
+
 fit_given_par0 <- function(data, sp, k, par0, basis, alpha_index = 1) {
      opt <- stats::optim(par0, loglikelihood_pen, loglikelihood_pen_grad,
                          X = basis$X, y = data$y, c = data$c - 1,
@@ -130,42 +271,73 @@ fit_0 <- function(data, sp, basis, alpha_index = 1) {
     fit_given_par0(data, sp, 0, par0, basis, alpha_index)
 }
 
-
-
-find_par0_given_fit_km1 <- function(fit_km1, k, nbasis, fit_k_other_sp = NULL) {
+find_start_beta_given_fit_km1 <- function(fit_km1, k, nbasis,
+                                          fit_k_other_sp = NULL) {
     if(k == 0) {
-        if(is.null(fit_k_other_sp))
-            return(c(rep(0.01, nbasis), 0))
-        else
-            return(fit_k_other_sp$par)
+        if(is.null(fit_k_other_sp)) {
+            return(list(
+                beta0 = rep(0.01, nbasis),
+                beta = matrix(nrow = nbasis, ncol = 0),
+                lsigma = 0
+            ))
+        } else {
+            return(list(
+                beta0 = fit_k_other_sp$beta0,
+                beta = fit_k_other_sp$beta,
+                lsigma = fit_k_other_sp$lsigma
+            ))
+        }
     }
-    if(is.null(fit_k_other_sp))
-        alpha_k0 <- rep(0.01, nbasis - k + 1)
-    else
-        alpha_k0 <- fit_k_other_sp$alpha[find_alpha_components(nbasis, k) == k]
 
-    c(fit_km1$beta0, fit_km1$alpha, alpha_k0, fit_km1$lsigma)
+    if(!is.null(fit_k_other_sp)) {
+        return(list(
+            beta0 = fit_k_other_sp$beta0,
+            beta = fit_k_other_sp$beta,
+            lsigma = fit_k_other_sp$lsigma
+        ))
+    }
+
+    beta_k0 <- rep(0.01, nbasis)
+
+    if(k == 1) {
+        beta <- matrix(beta_k0, nrow = nbasis, ncol = 1)
+    } else {
+        beta <- cbind(fit_km1$beta, beta_k0)
+    }
+
+    list(
+        beta0 = fit_km1$beta0,
+        beta = beta,
+        lsigma = fit_km1$lsigma
+    )
 }
 
 
-# fit model with k eigenfunctions, given model fit with k - 1 eigenfunctions, same sp
-fit_given_fit_km1 <- function(data, sp, k, fit_km1, basis, fit_k_other_sp = NULL,
-                              alpha_index) {
-    if(!is.null(fit_km1$alpha_index) && fit_km1$alpha_index != alpha_index) {
-        stop("fit_km1 was fitted with a different alpha_index")
-    }
+fit_given_fit_km1 <- function(data, sp, k, fit_km1, basis,
+                              fit_k_other_sp = NULL,
+                              alpha_index = 1,
+                              auto_alpha = TRUE,
+                              alpha_tol = 1e-2) {
+    start <- find_start_beta_given_fit_km1(
+        fit_km1 = fit_km1,
+        k = k,
+        nbasis = basis$nbasis,
+        fit_k_other_sp = fit_k_other_sp
+    )
 
-    if(!is.null(fit_k_other_sp) &&
-       !is.null(fit_k_other_sp$alpha_index) &&
-       fit_k_other_sp$alpha_index != alpha_index) {
-        stop("fit_k_other_sp was fitted with a different alpha_index")
-    }
-    
-    par0 <- find_par0_given_fit_km1(fit_km1, k, basis$nbasis, fit_k_other_sp)        
-    fit_given_par0(data, sp, k, par0, basis, alpha_index)
-   
+    fit_given_start_beta(
+        data = data,
+        sp = sp,
+        k = k,
+        beta0 = start$beta0,
+        beta = start$beta,
+        lsigma = start$lsigma,
+        basis = basis,
+        alpha_index = alpha_index,
+        auto_alpha = auto_alpha,
+        alpha_tol = alpha_tol
+    )
 }
-
 
 find_FVE <- function(mod) {
     cumsum(mod$lambda) / sum(mod$lambda)
@@ -178,8 +350,11 @@ is_k_larger_than_required <- function(mod, k_tol) {
 }
 
 
-fits_given_sp <- function(sp, kmax, data, basis, k_tol, fits_other_sp = NULL,
-                          alpha_index) {
+fits_given_sp <- function(sp, kmax, data, basis, k_tol,
+                          fits_other_sp = NULL,
+                          alpha_index = 1,
+                          auto_alpha = TRUE,
+                          alpha_tol = 1e-2) {
     fits <- list(fit_0(data, sp, basis, alpha_index))
     for(k in 1:kmax) {
         if(length(fits_other_sp) > k)
@@ -187,8 +362,18 @@ fits_given_sp <- function(sp, kmax, data, basis, k_tol, fits_other_sp = NULL,
         else
             fit_k_other_sp <- NULL
         
-        fits[[k+1]] <- fit_given_fit_km1(data, sp, k, fits[[k]], basis,
-                                         fit_k_other_sp, alpha_index)
+        fits[[k+1]] <- fit_given_fit_km1(
+            data = data,
+            sp = sp,
+            k = k,
+            fit_km1 = fits[[k]],
+            basis = basis,
+            fit_k_other_sp = fit_k_other_sp,
+            alpha_index = alpha_index,
+            auto_alpha = auto_alpha,
+            alpha_tol = alpha_tol
+        )
+        
         if(k > 1)
             if(is_k_larger_than_required(fits[[k+1]], k_tol))
                 break

@@ -113,15 +113,17 @@ householder_diagnostic <- function(alpha, nbasis, k,
   alpha_list <- split_alpha(alpha, nbasis, k)
 
   ## Only alpha_1, ..., alpha_{K-1} are used to construct subsequent
-  ## Householder transformations.
-  if (k <= 1) {
-    return(list(
-      min_ratio = Inf,
-      ratios = numeric(0),
-      alpha_norms = numeric(0),
-      alpha_first = numeric(0)
-    ))
+  ## Householder transformations
+  if(k <= 1) {
+      return(list(
+          min_ratio = Inf,
+          ratios = numeric(0),
+          alpha_norms = numeric(0),
+          alpha_selected = numeric(0),
+          alpha_index = alpha_index
+      ))
   }
+  
 
   alpha_used <- alpha_list[seq_len(k - 1)]
 
@@ -166,4 +168,74 @@ find_alpha_from_beta <- function(beta, nbasis, k, alpha_index = 1) {
     }
 
     unlist(alpha_list, use.names = FALSE)
+}
+
+choose_alpha_index_from_beta <- function(beta, nbasis, k) {
+    if(k <= 1) {
+        return(1)
+    }
+
+    candidates <- seq_len(nbasis - k + 1)
+
+    scores <- sapply(candidates, function(alpha_index) {
+        alpha <- find_alpha_from_beta(beta, nbasis = nbasis,
+                                      k = k, alpha_index = alpha_index)
+
+        householder_diagnostic(alpha, nbasis = nbasis, k = k,
+                               alpha_index = alpha_index)$min_ratio
+    })
+
+    candidates[which.max(scores)]
+}
+
+par_from_beta_parameterisation <- function(beta0, beta, lsigma,
+                                           nbasis, k, alpha_index) {
+    alpha <- find_alpha_from_beta(beta,
+                                  nbasis = nbasis,
+                                  k = k,
+                                  alpha_index = alpha_index)
+
+    c(beta0, alpha, lsigma)
+}
+
+start_from_fit_beta <- function(fit) {
+    list(beta0 = fit$beta0,
+         beta = fit$beta,
+         lsigma = fit$lsigma)
+}
+
+maybe_switch_alpha_index_start <- function(beta0, beta, lsigma,
+                                           basis, k,
+                                           alpha_index = 1,
+                                           alpha_tol = 1e-2,
+                                           auto_alpha = TRUE) {
+    nbasis <- basis$nbasis
+    
+    if(alpha_index > basis$nbasis - k + 1) {
+        alpha_index <- 1
+    }
+    
+    alpha <- find_alpha_from_beta(beta,
+                                  nbasis = nbasis,
+                                  k = k,
+                                  alpha_index = alpha_index)
+
+    if(auto_alpha && k > 1) {
+        diag <- householder_diagnostic(alpha,
+                                       nbasis = nbasis,
+                                       k = k,
+                                       alpha_index = alpha_index)
+
+        if(diag$min_ratio < alpha_tol) {
+            alpha_index <- choose_alpha_index_from_beta(beta, nbasis, k)
+
+            alpha <- find_alpha_from_beta(beta,
+                                          nbasis = nbasis,
+                                          k = k,
+                                          alpha_index = alpha_index)
+        }
+    }
+
+    list(par0 = c(beta0, alpha, lsigma),
+         alpha_index = alpha_index)
 }

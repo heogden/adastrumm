@@ -519,7 +519,7 @@ test_that("switching alpha parameterisation works if close to singular for defau
     nbasis <- 8
 
     householder_diagnostic(alpha_bad, nbasis, 3, alpha_index = 1)
-
+    expect_gt(choose_alpha_index_from_beta(beta, 8, 3), 1)
     
     get_fits <- function(alpha_index) {
         fits_given_sp(sp, kmax = 3, data, basis, k_tol, NULL, alpha_index = alpha_index)
