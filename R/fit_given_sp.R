@@ -77,7 +77,7 @@ find_fit_info <- function(opt, k, basis, sp, data, alpha_index) {
          basis = basis)    
 }
 
-fit_given_par0 <- function(data, sp, k, par0, basis, alpha_index) {
+fit_given_par0 <- function(data, sp, k, par0, basis, alpha_index = 1) {
      opt <- stats::optim(par0, loglikelihood_pen, loglikelihood_pen_grad,
                          X = basis$X, y = data$y, c = data$c - 1,
                          sp = sp, S = basis$S, K = k, alpha_index = alpha_index,
@@ -89,7 +89,7 @@ fit_given_par0 <- function(data, sp, k, par0, basis, alpha_index) {
      fit
 }
 
-fit_given_par0_nlm <- function(data, sp, k, par0, basis, alpha_index) {
+fit_given_par0_nlm <- function(data, sp, k, par0, basis, alpha_index = 1) {
     ml <- function(par) {
         result <- -loglikelihood_pen(par, X = basis$X, y = data$y,
                                      c = data$c - 1,
