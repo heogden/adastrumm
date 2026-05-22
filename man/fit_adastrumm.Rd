@@ -11,7 +11,8 @@ fit_adastrumm(
   k_tol = 1e-04,
   lsp_poss = -5:15,
   trace = FALSE,
-  alpha_index = 1
+  alpha_index = 1,
+  normalise = TRUE
 )
 }
 \arguments{

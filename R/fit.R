@@ -39,7 +39,7 @@ normalise_data <- function(data, norm = NULL) {
 #' @export
 fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
                           lsp_poss = -5:15, trace = FALSE,
-                          alpha_index = 1) {
+                          alpha_index = 1, normalise = TRUE) {
     if(any(is.na(data)))
         stop("There are missing values in the data, which adastrumm cannot handle")
 
@@ -52,8 +52,13 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
     }
 
     
+    if(normalise) {
+        norm <- NULL
+    } else {
+        norm <- list(m_y = 0, s_y = 1, m_x = 0, s_x = 1)
+    }
     
-    data_norm_full <- normalise_data(data)
+    data_norm_full <- normalise_data(data, norm)
     data <- data_norm_full$data
     norm <- data_norm_full$norm
     
