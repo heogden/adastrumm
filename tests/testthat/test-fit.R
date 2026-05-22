@@ -419,3 +419,154 @@ test_that("can find CI in problem case from simulations", {
     pred_data$mu_c_hat <- predict_adastrumm(mod, newdata = pred_data, interval = TRUE)
     expect_true(all(!is.na(pred_data$mu_c_hat)))
 })
+
+
+test_that("switching alpha parameterisation works if close to singular for default", {
+    make_beta_bad_subspace <- function(nbasis,
+                                       k,
+                                       bad_row = 1,
+                                       scales = seq(k, 1)) {
+        Z <- matrix(rnorm((nbasis - 1) * k), nrow = nbasis - 1, ncol = k)
+        Q <- qr.Q(qr(Z))[, seq_len(k), drop = FALSE]
+
+        beta <- matrix(0, nrow = nbasis, ncol = k)
+        beta[-bad_row, ] <- sweep(Q, 2, scales, `*`)
+        beta[bad_row, ] <- 0
+
+        beta
+    }
+
+    simulate_bad <- function(seed,
+                             nbasis = 8,
+                             k = 3,
+                             alpha_index_bad = 1,
+                             alpha_index_good = 2,
+                             target_signal_sd = 1,
+                             d = 500,
+                             n_i = 20,
+                             lsigma = -2) {
+        set.seed(seed)
+
+        n <- d * n_i
+        x_each <- seq(-1, 1, length.out = n_i)
+        x <- rep(x_each, times = d)
+        c <- rep(seq_len(d), each = n_i)
+
+        basis <- find_orthogonal_spline_basis(nbasis, x)
+
+        ## Construct beta so that the fitted subspace is nearly orthogonal to e_1.
+        beta_unscaled <- make_beta_bad_subspace(
+            nbasis = nbasis,
+            k = k,
+            bad_row = alpha_index_bad,
+            scale = 1
+        )
+
+        ## Rescale the signal, without changing the subspace geometry.
+        f_x_unscaled <- basis$X %*% beta_unscaled
+        scale_fac <- target_signal_sd / sqrt(mean(rowSums(f_x_unscaled^2)))
+        beta <- scale_fac * beta_unscaled
+
+        alpha_bad <- find_alpha_from_beta(
+            beta,
+            nbasis = nbasis,
+            k = k,
+            alpha_index = alpha_index_bad
+        )
+
+        alpha_good <- find_alpha_from_beta(
+            beta,
+            nbasis = nbasis,
+            k = k,
+            alpha_index = alpha_index_good
+        )
+
+        beta0 <- rep(0, nbasis)
+
+        u <- matrix(rnorm(d * k), ncol = k)
+        u_ext <- u[c, , drop = FALSE]
+
+        f_x <- basis$X %*% beta
+        mu <- rowSums(u_ext * f_x)
+
+        y <- as.vector(mu + rnorm(n, sd = exp(lsigma)))
+
+        list(
+            data = data.frame(c = c, x = x, y = y, mu = mu),
+            beta = beta,
+            beta0 = beta0,
+            alpha_bad = alpha_bad,
+            alpha_good = alpha_good,
+            basis = basis,
+            scale_fac = scale_fac,
+            diagnostic_bad = householder_diagnostic(
+                alpha_bad, nbasis, k, alpha_index = alpha_index_bad
+            ),
+            diagnostic_good = householder_diagnostic(
+                alpha_good, nbasis, k, alpha_index = alpha_index_good
+            )
+        )
+    }
+    
+
+    data_full <- simulate_bad(1)
+    data <- data_full$data
+    alpha_bad <- data_full$alpha_bad
+    beta <- data_full$beta
+    basis <- data_full$basis
+    sp <- exp(-5)
+    k_tol <- 1e-4
+    nbasis <- 8
+
+    householder_diagnostic(alpha_bad, nbasis, 3, alpha_index = 1)
+
+    
+    get_fits <- function(alpha_index) {
+        fits_given_sp(sp, kmax = 3, data, basis, k_tol, NULL, alpha_index = alpha_index)
+    }
+    
+    fits_1 <- get_fits(1)
+    fits_2 <- get_fits(2)
+    save(fits_1, fits_2, file = "fits.Rout")
+
+    fit_1 <- fits_1[[4]]
+    fit_2 <- fits_2[[4]]
+   
+    
+    householder_diagnostic(fit_1$alpha, nbasis, fit_1$k, alpha_index = 1)
+    householder_diagnostic(fit_2$alpha, nbasis, fit_2$k, alpha_index = 2)
+
+    fit_1$beta
+    fit_2$beta
+    beta
+
+    mod_1 <- add_hessian_and_log_ml(fit_1, basis, data)
+    mod_2 <- add_hessian_and_log_ml(fit_2, basis, data)
+
+    expect_false(is_neg_def(mod_1$hessian))
+    expect_true(is_neg_def(mod_2$hessian))
+
+    #' so then would have to drop to k = 2 for alpha_index = 1 in current version
+    fit_1_k2 <- fits_1[[3]]
+    householder_diagnostic(fit_1_k2$alpha, nbasis, fit_1_k2$k, alpha_index = 1)
+
+    mod_1_k2 <- add_hessian_and_log_ml(fit_1_k2, basis, data)
+    expect_false(is_neg_def(mod_1_k2$hessian))
+
+    #' but we still have same problem, so would have to drop k again
+    fit_1_k1 <- fits_1[[2]]
+    mod_1_k1 <- add_hessian_and_log_ml(fit_1_k1, basis, data)
+    expect_true(is_neg_def(mod_1_k1$hessian))
+
+    #' as a result, would get much worse errors
+    fitted_2 <- predict_adastrumm(mod_1, newdata = data)
+    fitted_1_k1 <- predict_adastrumm(mod_1_k1, newdata = data)
+    rmse_2 <- sqrt(mean((fitted_2 - data$mu)^2))
+    rmse_1_k1 <- sqrt(mean((fitted_1_k1 - data$mu)^2))
+    expect_gt(rmse_1_k1, 2 * rmse_2)
+
+    data_with_fitted <- data %>%
+        bind_cols(fitted_2 = fitted_2,
+                  fitted_1_k1 = fitted_1_k1)
+    
+})
