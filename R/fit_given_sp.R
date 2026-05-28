@@ -77,41 +77,8 @@ find_fit_info <- function(opt, k, basis, sp, data, alpha_index) {
          basis = basis)    
 }
 
-
-maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
-                                               alpha_tol = 1e-2,
-                                               auto_alpha = TRUE) {
-    if(!auto_alpha || fit$k <= 1) {
-        return(fit)
-    }
-
-    bad_hessian <- !is_neg_def(fit$hessian) ||
-        matrixcalc::is.singular.matrix(fit$hessian)
-
-    diag <- householder_diagnostic(
-        fit$alpha,
-        nbasis = basis$nbasis,
-        k = fit$k,
-        alpha_index = fit$alpha_index
-    )
-
-    bad_chart <- diag$min_ratio < alpha_tol
-
-    if(!bad_hessian && !bad_chart) {
-        return(fit)
-    }
-
-    alpha_index_new <- choose_alpha_index_from_beta(
-        fit$beta,
-        nbasis = basis$nbasis,
-        k = fit$k
-    )
-
-    if(alpha_index_new == fit$alpha_index) {
-        return(fit)
-    }
-
-    par0_new <- par_from_beta_parameterisation(
+reparameterise_fit_without_optim <- function(fit, basis, data, sp, alpha_index_new) {
+    par_new <- par_from_beta_parameterisation(
         beta0 = fit$beta0,
         beta = fit$beta,
         lsigma = fit$lsigma,
@@ -120,16 +87,145 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
         alpha_index = alpha_index_new
     )
 
-    fit_new <- fit_given_par0(
-        data = data,
-        sp = sp,
+    opt_new <- list(
+        par = par_new,
+        value = fit$l_pen,
+        convergence = fit$opt$convergence,
+        counts = fit$opt$counts,
+        message = "Reparameterised without reoptimisation"
+    )
+
+    fit_new <- find_fit_info(
+        opt = opt_new,
         k = fit$k,
-        par0 = par0_new,
         basis = basis,
+        sp = sp,
+        data = data,
         alpha_index = alpha_index_new
     )
 
     add_hessian_and_log_ml(fit_new, basis, data)
+}
+
+choose_alpha_index_from_beta_ci <- function(fit, basis, data, sp) {
+    candidates <- seq_len(basis$nbasis - fit$k + 1)
+
+    mods <- lapply(candidates, function(alpha_index) {
+        reparameterise_fit_without_optim(
+            fit = fit,
+            basis = basis,
+            data = data,
+            sp = sp,
+            alpha_index_new = alpha_index
+        )
+    })
+
+    scores <- vapply(mods, function(mod) {
+        if(!is_neg_def(mod$hessian) ||
+           matrixcalc::is.singular.matrix(mod$hessian)) {
+            return(-Inf)
+        }
+
+        householder_ci_diagnostic(mod)$min_z_to_boundary
+    }, numeric(1))
+
+
+    if(all(!is.finite(scores))) {
+        return(list(
+            alpha_index = fit$alpha_index,
+            mod = fit,
+            scores = scores,
+            candidates = candidates
+        ))
+    }
+    
+    best <- which.max(scores)
+
+    list(
+        alpha_index = candidates[best],
+        mod = mods[[best]],
+        scores = scores,
+        candidates = candidates
+    )
+}
+
+maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
+                                               alpha_tol = 1e-2,
+                                               alpha_ci_tol = 2,
+                                               auto_alpha = TRUE) {
+    if(!auto_alpha || fit$k <= 1) {
+        return(fit)
+    }
+
+    bad_hessian <- !is_neg_def(fit$hessian) ||
+        matrixcalc::is.singular.matrix(fit$hessian)
+
+    point_diag <- householder_diagnostic(
+        fit$alpha,
+        nbasis = basis$nbasis,
+        k = fit$k,
+        alpha_index = fit$alpha_index
+    )
+
+    bad_point_chart <- point_diag$min_ratio < alpha_tol
+
+    ## If the fitted point/Hessian is bad, reoptimise in a better chart.
+    if(bad_hessian || bad_point_chart) {
+        alpha_index_new <- choose_alpha_index_from_beta(
+            fit$beta,
+            nbasis = basis$nbasis,
+            k = fit$k
+        )
+
+        if(alpha_index_new == fit$alpha_index) {
+            return(fit)
+        }
+
+        par0_new <- par_from_beta_parameterisation(
+            beta0 = fit$beta0,
+            beta = fit$beta,
+            lsigma = fit$lsigma,
+            nbasis = basis$nbasis,
+            k = fit$k,
+            alpha_index = alpha_index_new
+        )
+
+        fit_new <- fit_given_par0(
+            data = data,
+            sp = sp,
+            k = fit$k,
+            par0 = par0_new,
+            basis = basis,
+            alpha_index = alpha_index_new
+        )
+
+        return(add_hessian_and_log_ml(fit_new, basis, data))
+    }
+
+    ## Only use CI diagnostic when the Hessian is already usable.
+    ci_diag <- householder_ci_diagnostic(fit)
+    bad_ci_chart <- ci_diag$min_z_to_boundary < alpha_ci_tol
+
+    if(!bad_ci_chart) {
+        fit$alpha_ci_diagnostic <- ci_diag
+        return(fit)
+    }
+
+    choice <- choose_alpha_index_from_beta_ci(
+        fit = fit,
+        basis = basis,
+        data = data,
+        sp = sp
+    )
+
+    if(choice$alpha_index == fit$alpha_index) {
+        fit$alpha_ci_scores <- choice$scores
+        fit$alpha_ci_candidates <- choice$candidates
+        fit$alpha_ci_diagnostic <- ci_diag
+        return(fit)
+    }
+
+    choice$mod
 }
 
 

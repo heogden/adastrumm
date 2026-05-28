@@ -641,18 +641,6 @@ test_that("switching alpha_index changes confidence intervals", {
 
     mod_1 <- get_mod(1, data, basis)
     mod_2 <- get_mod(2, data, basis)
-    mod_3 <- get_mod(3, data, basis)
-
-
-    householder_diagnostic(mod_1$alpha, basis$nbasis, mod_1$k, alpha_index = 1)
-    householder_diagnostic(mod_2$alpha, basis$nbasis, mod_2$k, alpha_index = 2)
-    householder_diagnostic(mod_3$alpha, basis$nbasis, mod_3$k, alpha_index = 2)
-    
-    
-    is_neg_def(mod_1$hessian)
-    is_neg_def(mod_2$hessian)
-    is_neg_def(mod_3$hessian)
-
 
     mu_hat_1 <- predict_adastrumm(mod_1,
                                   newdata = data_full$data,
@@ -662,89 +650,40 @@ test_that("switching alpha_index changes confidence intervals", {
                                   newdata = data_full$data,
                                   interval = TRUE,
                                   n_samples = 100)
-    mu_hat_3 <- predict_adastrumm(mod_3,
-                                  newdata = data_full$data,
-                                  interval = TRUE,
-                                  n_samples = 100)
 
     mean_width_CI_1 <- mean(mu_hat_1$upper - mu_hat_1$lower)
     mean_width_CI_2 <- mean(mu_hat_2$upper - mu_hat_2$lower)
-    mean_width_CI_3 <- mean(mu_hat_3$upper - mu_hat_3$lower)
     
-    c(mean_width_CI_1, mean_width_CI_2, mean_width_CI_3)
+    c(mean_width_CI_1, mean_width_CI_2)
     # alpha_index = 2 worse than the others
 
-    coverage_1 <- mean(data$mu > mu_hat_1$lower & data$mu < mu_hat_1$upper)
-    coverage_2 <- mean(data$mu > mu_hat_2$lower & data$mu < mu_hat_2$upper)
-    coverage_3 <- mean(data$mu > mu_hat_3$lower & data$mu < mu_hat_3$upper)
+    diag_1 <- householder_ci_diagnostic(mod_1)
+    diag_2 <- householder_ci_diagnostic(mod_2)
 
-    rmse_1 <- sqrt(mean((mu_hat_1$estimate - data$mu)^2))
-    rmse_2 <- sqrt(mean((mu_hat_2$estimate - data$mu)^2))
-    #' accuracy of estimation very similar in two cases
-    expect_true(rmse_1 < 1.01 * rmse_2 & rmse_2 < 1.01 * rmse_1)
+    choice <- choose_alpha_index_from_beta_ci(
+        fit = mod_2,
+        basis = basis,
+        data = data,
+        sp = exp(-5)
+    )
 
+    old_score <- householder_ci_diagnostic(mod_2)$min_z_to_boundary
+    new_score <- householder_ci_diagnostic(choice$mod)$min_z_to_boundary
 
-    make_fit_in_chart <- function(fit, alpha_index_new, basis, data, sp) {
-        alpha_new <- find_alpha_from_beta(
-            fit$beta,
-            nbasis = basis$nbasis,
-            k = fit$k,
-            alpha_index = alpha_index_new
-        )
+    expect_gt(new_score, old_score)
+    expect_true(choice$mod$alpha_index != 2)
 
-        par_new <- c(fit$beta0, alpha_new, fit$lsigma)
+    mod <- fit_adastrumm(data, lsp_poss = -5, alpha_index = 2)
+    expect_true(mod$alpha_index != 2)
 
-        fit_new <- find_fit_info(
-            opt = list(
-                par = par_new,
-                value = fit$l_pen,
-                convergence = 0,
-                counts = NA,
-                message = "manual reparameterisation"
-            ),
-            k = fit$k,
-            basis = basis,
-            sp = sp,
-            data = data,
-            alpha_index = alpha_index_new
-        )
-
-        add_hessian_and_log_ml(fit_new, basis, data)
-    }
+    mu_hat <- predict_adastrumm(mod,
+                                newdata = data_full$data,
+                                interval = TRUE,
+                                n_samples = 1000)
     
-    mod_same_beta_1 <- make_fit_in_chart(mod_1, 1, basis, data, sp)
-    mod_same_beta_2 <- make_fit_in_chart(mod_1, 2, basis, data, sp)
-
-    mu_hat_same_beta_1 <- predict_adastrumm(mod_same_beta_1,
-                                            newdata = data_full$data,
-                                            interval = TRUE,
-                                            n_samples = 100)
-    mu_hat_same_beta_2 <- predict_adastrumm(mod_same_beta_2,
-                                            newdata = data_full$data,
-                                            interval = TRUE,
-                                            n_samples = 100)
-    mean_width_CI_same_beta_1 <- mean(mu_hat_same_beta_1$upper - mu_hat_same_beta_1$lower)
-    mean_width_CI_same_beta_2 <- mean(mu_hat_same_beta_2$upper - mu_hat_same_beta_2$lower)
-
-    diag_CI <- function(mod) {
-        V <- solve(-mod$hessian)
-        se <- sqrt(diag(V))
-        
-        alpha_start <- length(mod$beta0) + 1
-        alpha_components <- split(seq_along(mod$alpha), find_alpha_components(basis$nbasis, mod$k))
-
-        selected_alpha_positions <- sapply(seq_len(mod$k - 1), function(j) {
-            alpha_start + alpha_components[[j]][mod$alpha_index] - 1
-        })
-
-        z_to_boundary <- abs(mod$par[selected_alpha_positions]) / se[selected_alpha_positions]
-        z_to_boundary
-    }
+    mean_width_CI <- mean(mu_hat$upper - mu_hat$lower)
+    expect_lt(mean_width_CI, 0.4)
     
-    diag_CI(mod_1)
-    diag_CI(mod_2)
-
-    diag_CI(mod_same_beta_1)
-    diag_CI(mod_same_beta_2)
-
+    coverage <- mean(data$mu > mu_hat$lower & data$mu < mu_hat$upper)
+    expect_gt(coverage, 0.93)
 })

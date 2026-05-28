@@ -38,7 +38,11 @@ normalise_data <- function(data, norm = NULL) {
 #'     poorly conditioned.
 #' @param alpha_tol Threshold for the Householder diagnostic used to
 #'     trigger automatic alpha-parameterisation switching.
-#' @param normalise Logical; if TRUE, automatically normalise the data (response and covariate) to mean 0, variance 1.
+#' @param alpha_ci_tol Threshold for the Householder confidence
+#'     interval diagnostic used to trigger automatic
+#'     alpha-parameterisation switching.
+#' @param normalise Logical; if TRUE, automatically normalise the data
+#'     (response and covariate) to mean 0, variance 1.
 #' @return The fitted model.
 #' @examples
 #' data_full <- simulate_1dv(1, -0.5, 0.1, 0.5, 0.1, 20, 10)
@@ -50,6 +54,7 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
                           alpha_index = 1,
                           auto_alpha = TRUE,
                           alpha_tol = 1e-2,
+                          alpha_ci_tol = 2,
                           normalise = TRUE) {
     if(any(is.na(data)))
         stop("There are missing values in the data, which adastrumm cannot handle")
@@ -117,6 +122,7 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
             sp = sp,
             basis = basis,
             alpha_tol = alpha_tol,
+            alpha_ci_tol = alpha_ci_tol,
             auto_alpha = auto_alpha
         )
 
@@ -136,6 +142,7 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
                     sp = sp,
                     basis = basis,
                     alpha_tol = alpha_tol,
+                    alpha_ci_tol = alpha_ci_tol,
                     auto_alpha = auto_alpha
                 )
                 fits[[fit$k + 1]] <- fit

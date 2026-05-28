@@ -14,6 +14,7 @@ fit_adastrumm(
   alpha_index = 1,
   auto_alpha = TRUE,
   alpha_tol = 0.01,
+  alpha_ci_tol = 2,
   normalise = TRUE
 )
 }
@@ -41,7 +42,12 @@ poorly conditioned.}
 \item{alpha_tol}{Threshold for the Householder diagnostic used to
 trigger automatic alpha-parameterisation switching.}
 
-\item{normalise}{Logical; if TRUE, automatically normalise the data (response and covariate) to mean 0, variance 1.}
+\item{alpha_ci_tol}{Threshold for the Householder confidence
+interval diagnostic used to trigger automatic
+alpha-parameterisation switching.}
+
+\item{normalise}{Logical; if TRUE, automatically normalise the data
+(response and covariate) to mean 0, variance 1.}
 
 \item{k_tol.}{The tolerance to use in selecting k, to explain at
 least 1-k_tol of the variation in trajectories.}

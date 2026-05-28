@@ -141,6 +141,50 @@ householder_diagnostic <- function(alpha, nbasis, k,
   )
 }
 
+householder_ci_diagnostic <- function(mod, eps = .Machine$double.eps) {
+    V <- if(!is.null(mod$var_par)) {
+             mod$var_par
+         } else {
+             solve(-mod$hessian)
+         }
+
+    se <- sqrt(pmax(diag(V), eps))
+
+    alpha_start <- length(mod$beta0) + 1
+
+    alpha_components <- split(
+        seq_along(mod$alpha),
+        find_alpha_components(mod$basis$nbasis, mod$k)
+    )
+
+    if(mod$k <= 1) {
+        return(list(
+            min_z_to_boundary = Inf,
+            z_to_boundary = numeric(0),
+            selected_alpha = numeric(0),
+            selected_se = numeric(0),
+            alpha_index = mod$alpha_index
+        ))
+    }
+
+    selected_alpha_positions <- vapply(seq_len(mod$k - 1), function(j) {
+        alpha_start + alpha_components[[j]][mod$alpha_index] - 1
+    }, numeric(1))
+
+    selected_alpha <- mod$par[selected_alpha_positions]
+    selected_se <- se[selected_alpha_positions]
+
+    z_to_boundary <- abs(selected_alpha) / pmax(selected_se, eps)
+
+    list(
+        min_z_to_boundary = min(z_to_boundary),
+        z_to_boundary = z_to_boundary,
+        selected_alpha = selected_alpha,
+        selected_se = selected_se,
+        alpha_index = mod$alpha_index
+    )
+}
+
 find_alpha_from_beta <- function(beta, nbasis, k, alpha_index = 1) {
     if(is.vector(beta)) {
         beta <- matrix(beta, nrow = nbasis, ncol = k)
