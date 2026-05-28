@@ -272,23 +272,8 @@ fit_0 <- function(data, sp, basis, alpha_index = 1) {
 }
 
 find_start_beta_given_fit_km1 <- function(fit_km1, k, nbasis,
-                                          fit_k_other_sp = NULL) {
-    if(k == 0) {
-        if(is.null(fit_k_other_sp)) {
-            return(list(
-                beta0 = rep(0.01, nbasis),
-                beta = matrix(nrow = nbasis, ncol = 0),
-                lsigma = 0
-            ))
-        } else {
-            return(list(
-                beta0 = fit_k_other_sp$beta0,
-                beta = fit_k_other_sp$beta,
-                lsigma = fit_k_other_sp$lsigma
-            ))
-        }
-    }
-
+                                          fit_k_other_sp = NULL,
+                                          alpha_index = 1) {
     if(!is.null(fit_k_other_sp)) {
         return(list(
             beta0 = fit_k_other_sp$beta0,
@@ -297,21 +282,38 @@ find_start_beta_given_fit_km1 <- function(fit_km1, k, nbasis,
         ))
     }
 
-    beta_k0 <- rep(0.01, nbasis)
+    beta0 <- fit_km1$beta0
+    lsigma <- fit_km1$lsigma
 
     if(k == 1) {
-        beta <- matrix(beta_k0, nrow = nbasis, ncol = 1)
+        alpha_start <- rep(0.01, nbasis)
     } else {
-        beta <- cbind(fit_km1$beta, beta_k0)
+        ## Express previous beta in the target alpha chart.
+        alpha_km1 <- find_alpha_from_beta(
+            fit_km1$beta,
+            nbasis = nbasis,
+            k = k - 1,
+            alpha_index = alpha_index
+        )
+
+        alpha_k0 <- rep(0.01, nbasis - k + 1)
+
+        alpha_start <- c(alpha_km1, alpha_k0)
     }
 
+    beta_start <- find_beta(
+        alpha_start,
+        nbasis = nbasis,
+        k = k,
+        alpha_index = alpha_index
+    )
+
     list(
-        beta0 = fit_km1$beta0,
-        beta = beta,
-        lsigma = fit_km1$lsigma
+        beta0 = beta0,
+        beta = beta_start,
+        lsigma = lsigma
     )
 }
-
 
 fit_given_fit_km1 <- function(data, sp, k, fit_km1, basis,
                               fit_k_other_sp = NULL,
@@ -322,7 +324,8 @@ fit_given_fit_km1 <- function(data, sp, k, fit_km1, basis,
         fit_km1 = fit_km1,
         k = k,
         nbasis = basis$nbasis,
-        fit_k_other_sp = fit_k_other_sp
+        fit_k_other_sp = fit_k_other_sp,
+        alpha_index = alpha_index
     )
 
     fit_given_start_beta(
