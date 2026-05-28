@@ -421,152 +421,205 @@ test_that("can find CI in problem case from simulations", {
 })
 
 
-test_that("switching alpha parameterisation works if close to singular for default", {
-    make_beta_bad_subspace <- function(nbasis,
-                                       k,
-                                       bad_row = 1,
-                                       scales = seq(k, 1)) {
-        Z <- matrix(rnorm((nbasis - 1) * k), nrow = nbasis - 1, ncol = k)
-        Q <- qr.Q(qr(Z))[, seq_len(k), drop = FALSE]
+make_beta_bad_subspace <- function(nbasis,
+                                   k,
+                                   bad_row = 1,
+                                   scales = seq(k, 1)) {
+    Z <- matrix(rnorm((nbasis - 1) * k), nrow = nbasis - 1, ncol = k)
+    Q <- qr.Q(qr(Z))[, seq_len(k), drop = FALSE]
 
-        beta <- matrix(0, nrow = nbasis, ncol = k)
-        beta[-bad_row, ] <- sweep(Q, 2, scales, `*`)
-        beta[bad_row, ] <- 0
+    beta <- matrix(0, nrow = nbasis, ncol = k)
+    beta[-bad_row, ] <- sweep(Q, 2, scales, `*`)
+    beta[bad_row, ] <- 0
 
-        beta
-    }
+    beta
+}
 
-    simulate_bad <- function(seed,
-                             nbasis = 8,
-                             k = 3,
-                             alpha_index_bad = 1,
-                             alpha_index_good = 2,
-                             target_signal_sd = 1,
-                             d = 500,
-                             n_i = 20,
-                             lsigma = -2) {
-        set.seed(seed)
+simulate_bad <- function(seed,
+                         nbasis = 8,
+                         k = 3,
+                         alpha_index_bad = 1,
+                         alpha_index_good = 2,
+                         target_signal_sd = 1,
+                         d = 500,
+                         n_i = 20,
+                         lsigma = -2) {
+    set.seed(seed)
 
-        n <- d * n_i
-        x_each <- seq(-1, 1, length.out = n_i)
-        x <- rep(x_each, times = d)
-        c <- rep(seq_len(d), each = n_i)
+    n <- d * n_i
+    x_each <- seq(-1, 1, length.out = n_i)
+    x <- rep(x_each, times = d)
+    c <- rep(seq_len(d), each = n_i)
 
-        basis <- find_orthogonal_spline_basis(nbasis, x)
+    basis <- find_orthogonal_spline_basis(nbasis, x)
 
-        ## Construct beta so that the fitted subspace is nearly orthogonal to e_1.
-        beta_unscaled <- make_beta_bad_subspace(
-            nbasis = nbasis,
-            k = k,
-            bad_row = alpha_index_bad,
-            scale = 1
+    ## Construct beta so that the fitted subspace is nearly orthogonal to e_1.
+    beta_unscaled <- make_beta_bad_subspace(
+        nbasis = nbasis,
+        k = k,
+        bad_row = alpha_index_bad,
+        scale = 1
+    )
+
+    ## Rescale the signal, without changing the subspace geometry.
+    f_x_unscaled <- basis$X %*% beta_unscaled
+    scale_fac <- target_signal_sd / sqrt(mean(rowSums(f_x_unscaled^2)))
+    beta <- scale_fac * beta_unscaled
+
+    alpha_bad <- find_alpha_from_beta(
+        beta,
+        nbasis = nbasis,
+        k = k,
+        alpha_index = alpha_index_bad
+    )
+
+    alpha_good <- find_alpha_from_beta(
+        beta,
+        nbasis = nbasis,
+        k = k,
+        alpha_index = alpha_index_good
+    )
+
+    beta0 <- rep(0, nbasis)
+
+    u <- matrix(rnorm(d * k), ncol = k)
+    u_ext <- u[c, , drop = FALSE]
+
+    f_x <- basis$X %*% beta
+    mu <- rowSums(u_ext * f_x)
+
+    y <- as.vector(mu + rnorm(n, sd = exp(lsigma)))
+
+    list(
+        data = data.frame(c = c, x = x, y = y, mu = mu),
+        beta = beta,
+        beta0 = beta0,
+        alpha_bad = alpha_bad,
+        alpha_good = alpha_good,
+        basis = basis,
+        scale_fac = scale_fac,
+        diagnostic_bad = householder_diagnostic(
+            alpha_bad, nbasis, k, alpha_index = alpha_index_bad
+        ),
+        diagnostic_good = householder_diagnostic(
+            alpha_good, nbasis, k, alpha_index = alpha_index_good
         )
+    )
+}
 
-        ## Rescale the signal, without changing the subspace geometry.
-        f_x_unscaled <- basis$X %*% beta_unscaled
-        scale_fac <- target_signal_sd / sqrt(mean(rowSums(f_x_unscaled^2)))
-        beta <- scale_fac * beta_unscaled
 
-        alpha_bad <- find_alpha_from_beta(
-            beta,
-            nbasis = nbasis,
-            k = k,
-            alpha_index = alpha_index_bad
-        )
 
-        alpha_good <- find_alpha_from_beta(
-            beta,
-            nbasis = nbasis,
-            k = k,
-            alpha_index = alpha_index_good
-        )
 
-        beta0 <- rep(0, nbasis)
-
-        u <- matrix(rnorm(d * k), ncol = k)
-        u_ext <- u[c, , drop = FALSE]
-
-        f_x <- basis$X %*% beta
-        mu <- rowSums(u_ext * f_x)
-
-        y <- as.vector(mu + rnorm(n, sd = exp(lsigma)))
-
-        list(
-            data = data.frame(c = c, x = x, y = y, mu = mu),
-            beta = beta,
-            beta0 = beta0,
-            alpha_bad = alpha_bad,
-            alpha_good = alpha_good,
-            basis = basis,
-            scale_fac = scale_fac,
-            diagnostic_bad = householder_diagnostic(
-                alpha_bad, nbasis, k, alpha_index = alpha_index_bad
-            ),
-            diagnostic_good = householder_diagnostic(
-                alpha_good, nbasis, k, alpha_index = alpha_index_good
-            )
-        )
-    }
-    
-
+test_that("fit_given_start_beta switches alpha_index for starting point designed to be close to singular for alpha_index = 1", {
     data_full <- simulate_bad(1)
     data <- data_full$data
-    alpha_bad <- data_full$alpha_bad
-    beta <- data_full$beta
+    basis <- data_full$basis
+    sp <- exp(-5)
+
+    fit <- fit_given_start_beta(
+        data = data,
+        sp = sp,
+        k = 3,
+        beta0 = data_full$beta0,
+        beta = data_full$beta,
+        lsigma = -2,
+        basis = basis,
+        alpha_index = 1,
+        auto_alpha = TRUE,
+        alpha_tol = 1e-4
+    )
+
+    expect_true(fit$alpha_index != 1)
+    
+})
+
+test_that("fixed alpha_index = 2 gives a well-behaved k = 3 fit", {
+    data_full <- simulate_bad(1)
+
+    data <- data_full$data
     basis <- data_full$basis
     sp <- exp(-5)
     k_tol <- 1e-4
-    nbasis <- 8
 
-    householder_diagnostic(alpha_bad, nbasis, 3, alpha_index = 1)
-    expect_gt(choose_alpha_index_from_beta(beta, 8, 3), 1)
+    fits <- fits_given_sp(
+        sp = sp,
+        kmax = 3,
+        data = data,
+        basis = basis,
+        k_tol = k_tol,
+        fits_other_sp = NULL,
+        alpha_index = 2,
+        auto_alpha = FALSE
+    )
+
+    fit <- fits[[4]]
+    mod <- add_hessian_and_log_ml(fit, basis, data)
+
+    expect_equal(mod$k, 3)
+    expect_equal(mod$alpha_index, 2)
+    expect_true(is_neg_def(mod$hessian))
+
+    ## check this is close to the known good optimum,
+    expect_gt(mod$l_pen, 1282.8)
+    expect_gt(mod$log_ml, 1160)
+
+    samples <- find_samples(mod, 100)
+    mu_hat <- predict_adastrumm(mod,
+                                newdata = data_full$data,
+                                interval = TRUE,
+                                samples = samples)
     
-    get_fits <- function(alpha_index) {
-        fits_given_sp(sp, kmax = 3, data, basis, k_tol, NULL, alpha_index = alpha_index)
-    }
+    mean_width_CI <- mean(mu_hat$upper - mu_hat$lower)
+    coverage_CI <- mean(mu_hat$lower <= data$mu & mu_hat$upper >= data$mu)
     
-    fits_1 <- get_fits(1)
-    fits_2 <- get_fits(2)
-    save(fits_1, fits_2, file = "fits.Rout")
+    ## with alpha_index = 1, get mean_width_CI of 0.52
+    expect_lt(mean_width_CI, 0.4)
 
-    fit_1 <- fits_1[[4]]
-    fit_2 <- fits_2[[4]]
-   
-    
-    householder_diagnostic(fit_1$alpha, nbasis, fit_1$k, alpha_index = 1)
-    householder_diagnostic(fit_2$alpha, nbasis, fit_2$k, alpha_index = 2)
+})
 
-    fit_1$beta
-    fit_2$beta
-    beta
 
-    mod_1 <- add_hessian_and_log_ml(fit_1, basis, data)
-    mod_2 <- add_hessian_and_log_ml(fit_2, basis, data)
+test_that("fit_adastrumm keeps k = 3 and gives a well-behaved Hessian with auto_alpha", {
+    data_full <- simulate_bad(1)
 
-    expect_false(is_neg_def(mod_1$hessian))
-    expect_true(is_neg_def(mod_2$hessian))
+    mod <- fit_adastrumm(
+        data = data_full$data,
+        nbasis = 8,
+        kmax = 3,
+        k_tol = 1e-4,
+        lsp_poss = -5,
+        trace = FALSE,
+        alpha_index = 1,
+        auto_alpha = TRUE,
+        alpha_tol = 1e-4,
+        normalise = FALSE
+    )
 
-    #' so then would have to drop to k = 2 for alpha_index = 1 in current version
-    fit_1_k2 <- fits_1[[3]]
-    householder_diagnostic(fit_1_k2$alpha, nbasis, fit_1_k2$k, alpha_index = 1)
+    expect_equal(mod$k, 3)
+    expect_true(is_neg_def(mod$hessian))
 
-    mod_1_k2 <- add_hessian_and_log_ml(fit_1_k2, basis, data)
-    expect_false(is_neg_def(mod_1_k2$hessian))
+    expect_gt(mod$l_pen, 1282.8)
+    expect_gt(mod$log_ml, 1160)
 
-    #' but we still have same problem, so would have to drop k again
-    fit_1_k1 <- fits_1[[2]]
-    mod_1_k1 <- add_hessian_and_log_ml(fit_1_k1, basis, data)
-    expect_true(is_neg_def(mod_1_k1$hessian))
 
-    #' as a result, would get much worse errors
-    fitted_2 <- predict_adastrumm(mod_1, newdata = data)
-    fitted_1_k1 <- predict_adastrumm(mod_1_k1, newdata = data)
-    rmse_2 <- sqrt(mean((fitted_2 - data$mu)^2))
-    rmse_1_k1 <- sqrt(mean((fitted_1_k1 - data$mu)^2))
-    expect_gt(rmse_1_k1, 2 * rmse_2)
+    samples <- find_samples(mod, 100)
+    mu_hat <- predict_adastrumm(mod,
+                                newdata = data_full$data,
+                                interval = TRUE,
+                                samples = samples)
 
-    data_with_fitted <- data %>%
-        bind_cols(fitted_2 = fitted_2,
-                  fitted_1_k1 = fitted_1_k1)
-    
+    library(tidyverse)
+    data_with_fit <- data_full$data %>%
+        mutate(mu_hat = mu_hat)
+
+    data_with_fit %>%
+        filter(c <= 20) %>%
+        ggplot(aes(x = x, y = mu_hat$estimate)) +
+        geom_line() +
+        geom_line(aes(y = mu), linetype = "dashed") +
+        geom_ribbon(aes(ymin = mu_hat$lower, ymax = mu_hat$upper), alpha = 0.3) + 
+        facet_wrap(vars(c))
+
+    mean_width_CI <- mean(mu_hat$upper - mu_hat$lower)
+    #' this currently fails, it is 0.52, as using alpha_index = 1
+    expect_lt(mean_width_CI, 0.4)
 })
