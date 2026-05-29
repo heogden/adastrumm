@@ -3,11 +3,13 @@ add_hessian_and_log_ml <- function(fit, basis, data) {
                                           X = basis$X, y = data$y, c = data$c - 1,
                                           sp = fit$sp, S = basis$S, K = fit$k,
                                           alpha_index = fit$alpha_index)
-    fit$var_par <- tryCatch(solve(-fit$hessian),
-                            error = function(cond) {
-                                pracma::pinv(-fit$hessian)
-                            })
-                            
+    var_par <- tryCatch(solve(-fit$hessian),
+                        error = function(cond) {
+                            pracma::pinv(-fit$hessian)
+                        })
+
+    fit$var_par <- 0.5 * (var_par + t(var_par))
+    
     fit$log_ml <- approx_log_ml(fit, fit$hessian, basis)
     fit
 }

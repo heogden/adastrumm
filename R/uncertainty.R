@@ -17,7 +17,8 @@ find_u_sample_cluster <- function(cluster, sigma, data, f0_x, f_x) {
 
 find_sample <- function(id, mod) {
     set.seed(id)
-    par <- as.numeric(mvnfast::rmvn(1, mod$par, mod$var_par))
+    V <- 0.5 * (mod$var_par + t(mod$var_par))
+    par <- as.numeric(mvnfast::rmvn(1, mod$par, V))
 
     par_split <- split_par(par, mod$basis$nbasis)
     
