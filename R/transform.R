@@ -251,7 +251,7 @@ start_from_fit_beta <- function(fit) {
 maybe_switch_alpha_index_start <- function(beta0, beta, lsigma,
                                            basis, k,
                                            alpha_index = 1,
-                                           alpha_tol = 1e-2,
+                                           alpha_tol = 1e-5,
                                            auto_alpha = TRUE) {
     nbasis <- basis$nbasis
     

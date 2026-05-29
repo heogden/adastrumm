@@ -53,7 +53,7 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
                           lsp_poss = -5:15, trace = FALSE,
                           alpha_index = 1,
                           auto_alpha = TRUE,
-                          alpha_tol = 1e-2,
+                          alpha_tol = 1e-5,
                           alpha_ci_tol = 2,
                           normalise = TRUE) {
     if(any(is.na(data)))
@@ -154,6 +154,15 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
                     message("fit from nlm failed or gave a non-negative definite or singular Hessian. Reducing k. ")
                     fit <- fits[[fit$k]]
                     fit <- add_hessian_and_log_ml(fit, basis, data)
+                    fit <- maybe_reparameterise_after_hessian(
+                        fit = fit,
+                        data = data,
+                        sp = sp,
+                        basis = basis,
+                        alpha_tol = alpha_tol,
+                        alpha_ci_tol = alpha_ci_tol,
+                        auto_alpha = auto_alpha
+                    )
                     fits[[fit$k + 1]] <- fit
                     fits_list[[i]] <- fits
                 }

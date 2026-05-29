@@ -150,7 +150,7 @@ choose_alpha_index_from_beta_ci <- function(fit, basis, data, sp) {
 }
 
 maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
-                                               alpha_tol = 1e-2,
+                                               alpha_tol = 1e-5,
                                                alpha_ci_tol = 2,
                                                auto_alpha = TRUE) {
     if(!auto_alpha || fit$k <= 1) {
@@ -230,7 +230,7 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
 
 
 maybe_reparameterise_and_refit <- function(fit, data, sp, basis,
-                                           alpha_tol = 1e-2,
+                                           alpha_tol = 1e-5,
                                            auto_alpha = TRUE) {
     if(!auto_alpha || fit$k <= 1) {
         return(fit)
@@ -281,7 +281,7 @@ fit_given_start_beta <- function(data, sp, k,
                                  basis,
                                  alpha_index = 1,
                                  auto_alpha = TRUE,
-                                 alpha_tol = 1e-2) {
+                                 alpha_tol = 1e-5) {
     start <- maybe_switch_alpha_index_start(
         beta0 = beta0,
         beta = beta,
@@ -415,7 +415,7 @@ fit_given_fit_km1 <- function(data, sp, k, fit_km1, basis,
                               fit_k_other_sp = NULL,
                               alpha_index = 1,
                               auto_alpha = TRUE,
-                              alpha_tol = 1e-2) {
+                              alpha_tol = 1e-5) {
     start <- find_start_beta_given_fit_km1(
         fit_km1 = fit_km1,
         k = k,
@@ -453,7 +453,7 @@ fits_given_sp <- function(sp, kmax, data, basis, k_tol,
                           fits_other_sp = NULL,
                           alpha_index = 1,
                           auto_alpha = TRUE,
-                          alpha_tol = 1e-2) {
+                          alpha_tol = 1e-5) {
     fits <- list(fit_0(data, sp, basis, alpha_index))
     for(k in 1:kmax) {
         if(length(fits_other_sp) > k)
