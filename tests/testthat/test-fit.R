@@ -547,3 +547,40 @@ test_that("automatic index gives reasonable CI", {
     coverage <- mean(data$mu > mu_hat$lower & data$mu < mu_hat$upper)
     expect_gt(coverage, 0.93)
 })
+
+test_that("log marginal likelihood for choosing gamma is invariant to alpha_index", {
+    data_full <- simulate_bad(1, d = 100, n_i = 5)
+
+    data <- data_full$data
+    basis <- data_full$basis
+    nbasis <- basis$nbasis
+
+
+     get_mod <- function(alpha_index, sp, data, basis) {
+        fits <- fits_given_sp(
+            sp = sp,
+            kmax = 3,
+            data = data,
+            basis = basis,
+            k_tol = 1e-4,
+            fits_other_sp = NULL,
+            alpha_index = alpha_index,
+            auto_alpha = FALSE
+        )
+        fit <- fits[[4]]
+        add_hessian_and_log_ml(fit, basis, data)
+    }
+
+    for(sp in c(exp(-5), 1, exp(3))) {
+        mod_1 <- get_mod(1, sp, data, basis)
+
+        for(alpha_index in seq_len(nbasis - mod_1$k + 1)) {
+            mod_index <- reparameterise_fit_without_optim(
+                mod_1, basis, data, sp, alpha_index
+            )
+            
+            expect_equal(mod_1$log_ml, mod_index$log_ml, tolerance = 1e-4)
+        }
+    }
+    
+})
