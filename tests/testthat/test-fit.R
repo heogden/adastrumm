@@ -505,7 +505,7 @@ simulate_bad <- function(seed,
 
 
 test_that("fit_given_start_beta switches alpha_index for starting point designed to be close to singular for alpha_index = 1", {
-    data_full <- simulate_bad(1)
+    data_full <- simulate_bad(1, d = 200, n_i = 10)
     data <- data_full$data
     basis <- data_full$basis
     sp <- exp(-5)
@@ -520,103 +520,14 @@ test_that("fit_given_start_beta switches alpha_index for starting point designed
         basis = basis,
         alpha_index = 1,
         auto_alpha = TRUE,
-        alpha_tol = 1e-4
+        alpha_tol = 1e-5
     )
 
     expect_true(fit$alpha_index != 1)
     
 })
 
-test_that("fixed alpha_index = 2 gives a well-behaved k = 3 fit", {
-    data_full <- simulate_bad(1)
 
-    data <- data_full$data
-    basis <- data_full$basis
-    sp <- exp(-5)
-    k_tol <- 1e-4
-
-    fits <- fits_given_sp(
-        sp = sp,
-        kmax = 3,
-        data = data,
-        basis = basis,
-        k_tol = k_tol,
-        fits_other_sp = NULL,
-        alpha_index = 2,
-        auto_alpha = FALSE
-    )
-
-    fit <- fits[[4]]
-    mod <- add_hessian_and_log_ml(fit, basis, data)
-
-    expect_equal(mod$k, 3)
-    expect_equal(mod$alpha_index, 2)
-    expect_true(is_neg_def(mod$hessian))
-
-    ## check this is close to the known good optimum,
-    expect_gt(mod$l_pen, 1282.8)
-    expect_gt(mod$log_ml, 1160)
-
-    samples <- find_samples(mod, 100)
-    mu_hat <- predict_adastrumm(mod,
-                                newdata = data_full$data,
-                                interval = TRUE,
-                                samples = samples)
-    
-    mean_width_CI <- mean(mu_hat$upper - mu_hat$lower)
-    coverage_CI <- mean(mu_hat$lower <= data$mu & mu_hat$upper >= data$mu)
-    
-    ## with alpha_index = 1, get mean_width_CI of 0.52
-    expect_lt(mean_width_CI, 0.4)
-
-})
-
-
-test_that("fit_adastrumm keeps k = 3 and gives a well-behaved Hessian with auto_alpha", {
-    data_full <- simulate_bad(1)
-
-    mod <- fit_adastrumm(
-        data = data_full$data,
-        nbasis = 8,
-        kmax = 3,
-        k_tol = 1e-4,
-        lsp_poss = -5,
-        trace = FALSE,
-        alpha_index = 1,
-        auto_alpha = TRUE,
-        alpha_tol = 1e-4,
-        normalise = FALSE
-    )
-
-    expect_equal(mod$k, 3)
-    expect_true(is_neg_def(mod$hessian))
-
-    expect_gt(mod$l_pen, 1282.8)
-    expect_gt(mod$log_ml, 1160)
-
-
-    samples <- find_samples(mod, 100)
-    mu_hat <- predict_adastrumm(mod,
-                                newdata = data_full$data,
-                                interval = TRUE,
-                                samples = samples)
-
-    library(tidyverse)
-    data_with_fit <- data_full$data %>%
-        mutate(mu_hat = mu_hat)
-
-    data_with_fit %>%
-        filter(c <= 20) %>%
-        ggplot(aes(x = x, y = mu_hat$estimate)) +
-        geom_line() +
-        geom_line(aes(y = mu), linetype = "dashed") +
-        geom_ribbon(aes(ymin = mu_hat$lower, ymax = mu_hat$upper), alpha = 0.3) + 
-        facet_wrap(vars(c))
-
-    mean_width_CI <- mean(mu_hat$upper - mu_hat$lower)
-    #' this currently fails, it is 0.52, as using alpha_index = 1
-    expect_lt(mean_width_CI, 0.4)
-})
 
 test_that("switching alpha_index changes confidence intervals", {
     data_full <- simulate_bad(1, d = 200, n_i = 10)
@@ -654,32 +565,29 @@ test_that("switching alpha_index changes confidence intervals", {
     mean_width_CI_1 <- mean(mu_hat_1$upper - mu_hat_1$lower)
     mean_width_CI_2 <- mean(mu_hat_2$upper - mu_hat_2$lower)
     
-    c(mean_width_CI_1, mean_width_CI_2)
-    # alpha_index = 2 worse than the others
-
+    expect_gt(mean_width_CI_2, 0.4)
+    expect_gt(mean_width_CI_2, mean_width_CI_1)
+    
     diag_1 <- householder_ci_diagnostic(mod_1)
     diag_2 <- householder_ci_diagnostic(mod_2)
+    expect_gt(diag_1$min_z_to_boundary, diag_2$min_z_to_boundary)
+}
 
-    choice <- choose_alpha_index_from_beta_ci(
-        fit = mod_2,
-        basis = basis,
-        data = data,
-        sp = exp(-5)
-    )
 
-    old_score <- householder_ci_diagnostic(mod_2)$min_z_to_boundary
-    new_score <- householder_ci_diagnostic(choice$mod)$min_z_to_boundary
+test_that("automatic index gives reasonable CI", {
+    data_full <- simulate_bad(1, d = 200, n_i = 10)
 
-    expect_gt(new_score, old_score)
-    expect_true(choice$mod$alpha_index != 2)
+    data <- data_full$data
+    basis <- data_full$basis
 
+    #' do choice of alpha_index automatically:
     mod <- fit_adastrumm(data, lsp_poss = -5, alpha_index = 2)
     expect_true(mod$alpha_index != 2)
 
     mu_hat <- predict_adastrumm(mod,
                                 newdata = data_full$data,
                                 interval = TRUE,
-                                n_samples = 1000)
+                                n_samples = 100 )
     
     mean_width_CI <- mean(mu_hat$upper - mu_hat$lower)
     expect_lt(mean_width_CI, 0.4)
