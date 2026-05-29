@@ -13,7 +13,7 @@ fit_adastrumm(
   trace = FALSE,
   alpha_index = 1,
   auto_alpha = TRUE,
-  alpha_tol = 0.01,
+  alpha_tol = 1e-05,
   alpha_ci_tol = 2,
   normalise = TRUE
 )
