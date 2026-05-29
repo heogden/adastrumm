@@ -63,10 +63,18 @@ test_that("prediction with confidence interval works in cd4 example", {
     
     mod <- fit_adastrumm(data_cd4)
     y_hat_pred <- predict_adastrumm(mod, newdata = data_cd4, interval = TRUE)
-
-    
-
-    
     
 })
 
+test_that("prediction gives error if pred_data is not of correct form", {
+    data <- data.frame(x = rnorm(100), y = rnorm(100), c = rep(1:10, each = 10))
+    mod <- fit_adastrumm(data)
+
+    expect_error(predict_adastrumm(mod, newdata = NULL),
+                 "must contain a column called 'x'")
+
+    expect_error(
+        predict_adastrumm(mod, newdata = list(c = 1:20, x = rnorm(20))),
+        "contains clusters not present in the fitted model"
+    )
+})

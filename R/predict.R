@@ -1,8 +1,33 @@
 predict_y_given_mod <- function(mod, newdata, deriv = FALSE) {
+    newdata <- as.data.frame(newdata)
+    
+    if(!("x" %in% names(newdata))) {
+        stop("newdata must contain a column called 'x'")
+    }
+
+    if(!("c" %in% names(newdata))) {
+        stop("newdata must contain a column called 'c'")
+    }
+
+    if(nrow(newdata) == 0) {
+        stop("newdata has zero rows")
+    }
+    
     newdata_norm <- newdata
     newdata_norm$x <- (newdata$x - mod$norm$m_x) / mod$norm$s_x
 
     x_norm_all <- sort(unique(newdata_norm$x))
+
+    if(length(x_norm_all) == 0) {
+        stop("newdata$x has length zero")
+    }
+
+    missing_clusters <- setdiff(unique(newdata$c), rownames(mod$u_hat))
+
+    if(length(missing_clusters) > 0) {
+        stop("newdata$c contains clusters not present in the fitted model")
+    }
+    
     clusters <- sort(unique(mod$data$c))
     newdata_norm_all <- tidyr::expand_grid(c = clusters, x = x_norm_all)
     y_norm_fun <- find_spline_fun(mod$par_cluster, mod$basis)
