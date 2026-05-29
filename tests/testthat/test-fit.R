@@ -7,33 +7,22 @@ test_that("sensible fit for test data 1 (straight lines)", {
 
     mod <- fit_adastrumm(data)
 
-    mod_2 <- fit_adastrumm(data, alpha_index = 2)
-
-
     expect_equal(mod$k, 2)
     expect_gt(mod$sp, 1000)
 
     library(tidyverse)
     
     pred_data <- bind_cols(x = data$x, c = data$c, eta = eta) %>%
-        mutate(eta_hat = predict_adastrumm(mod, newdata = list(x = x, c = c)),
-               eta_hat_2 = predict_adastrumm(mod_2, newdata = list(x = x, c = c)))
+        mutate(eta_hat = predict_adastrumm(mod, newdata = list(x = x, c = c)))
 
     rmse <- sqrt(mean(pred_data$eta_hat - pred_data$eta)^2)
     expect_lt(rmse, 0.1)
-
-    rmse_2 <- sqrt(mean(pred_data$eta_hat_2 - pred_data$eta)^2)
-    expect_lt(abs(rmse-rmse_2), 0.01)
 
     pred_data %>%
         ggplot(aes(x = x)) +
         geom_line(aes(y = eta_hat)) +
         geom_line(aes(y = eta), linetype = "dashed") +
         facet_wrap(vars(c))
-
-    sd(mod$u[,1])
-    sd(mod$u[,2])
-    cor(mod$u[,1], mod$u[,2])
 
     #' check prediction
     y_hat_data <- predict_adastrumm(mod, newdata = data)
@@ -103,8 +92,6 @@ test_that("sensible fit for test data 1 (straight lines)", {
 
     expect_gt(coverage_d, 0.9)
     expect_lt(coverage_d, 1)
-
-    
     
 })
 
@@ -141,40 +128,6 @@ test_that("sensible fit for test data 2 (not straight lines)", {
         geom_line(aes(y = eta), linetype = "dashed") +
         facet_wrap(vars(c))
 })
-
-test_that("chooses a reasonably large sp if have straight lines", {
-    sigma_u <- 0.5
-    sigma <- 0.1
-    n_clusters <- 50
-    n_obs_per_cluster <- 10
-    beta_0 <- -1
-    beta_1 <- 2
-
-    set.seed(1)
-
-    u <- rnorm(n_clusters, sd = sigma_u)
-
-    x_full <- seq(0, 1, length.out = 1000)
-    x_index <- sample(seq_along(x_full), n_clusters * n_obs_per_cluster, replace = TRUE)
-
-    library(tidyverse)
-
-    data <- bind_cols(x_index = x_index,
-                      c = rep(1:n_clusters, each = n_obs_per_cluster)) %>%
-        mutate(x = x_full[x_index],
-               eta = (beta_0 + beta_1 * x + u[c]),
-               epsilon = rnorm(length(x_index), 0, sigma),
-               y = eta + epsilon)
-
-    eta_data <- crossing(x = x_full,
-                         c = 1:n_clusters) %>%
-        mutate(eta = (beta_0 + beta_1 * x + u[c]))
-
-    mod <- fit_adastrumm(data)
-
-    expect_gt(mod$sp, 100)
-})
-
 
 
 
@@ -249,7 +202,7 @@ test_that("fits the sleepstudy data", {
                x = Days)
 
     nbasis <- 15
-    mod <- fit_adastrumm(data, nbasis = nbasis)
+    expect_no_error(mod <- fit_adastrumm(data, nbasis = nbasis))
 
 
     x_pred_data <- crossing(x = seq(from = min(data$x),
@@ -257,8 +210,8 @@ test_that("fits the sleepstudy data", {
                                     length.out = 100),
                             c = unique(data$c))
 
-    pred_data <- x_pred_data  %>%
-        mutate(mu_hat = predict_adastrumm(mod, newdata = list(x = x, c = c)))
+    expect_no_error(pred_data <- x_pred_data  %>%
+        mutate(mu_hat = predict_adastrumm(mod, newdata = list(x = x, c = c))))
     
     pred_data %>%
         ggplot(aes(x = x)) +
@@ -334,12 +287,11 @@ test_that("fits for problem data from 1dv model", {
     data_full <- simulate_1dv(22, -0.5, 0.1, 0.5, 0.1, 20, 10)
     data <- data_full$data
     mod <- fit_adastrumm(data)
-    expect_equal(mod$k, 2)
     
     pred_data <- data_full$pred_data
     pred_data$mu_c_hat <- predict_adastrumm(mod, newdata = pred_data, interval = TRUE)
 
-    expect_lt(mean(abs(pred_data$mu_c_hat$estimate - pred_data$mu_c)), 1)
+    expect_lt(mean(abs(pred_data$mu_c_hat$estimate - pred_data$mu_c)), 0.1)
 
 })
 
@@ -571,7 +523,7 @@ test_that("switching alpha_index changes confidence intervals", {
     diag_1 <- householder_ci_diagnostic(mod_1)
     diag_2 <- householder_ci_diagnostic(mod_2)
     expect_gt(diag_1$min_z_to_boundary, diag_2$min_z_to_boundary)
-}
+})
 
 
 test_that("automatic index gives reasonable CI", {

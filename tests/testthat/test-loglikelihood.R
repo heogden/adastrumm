@@ -11,11 +11,11 @@ test_that("derivatives of loglikelihood are correct", {
     set.seed(1)
     par <- c(rnorm(nbasis + length(alpha_components), sd = 0.1), 1)
 
-    lp_grad <- loglikelihood_pen_grad(par, basis$X, data$y, data$c - 1, sp, basis$S, k)
-    lp_hess <- loglikelihood_pen_hess(par, basis$X, data$y, data$c - 1, sp, basis$S, k)
+    lp_grad <- loglikelihood_pen_grad(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
+    lp_hess <- loglikelihood_pen_hess(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
 
     lp_fun <- function(par) {
-        loglikelihood_pen(par, basis$X, data$y, data$c - 1, sp, basis$S, k)
+        loglikelihood_pen(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
     }
 
     lp_grad_man <- numDeriv::grad(lp_fun, par)
@@ -26,9 +26,9 @@ test_that("derivatives of loglikelihood are correct", {
 
     #library(microbenchmark)
     #microbenchmark(
-    #    loglikelihood_pen(par, basis$X, data$y, data$c - 1, sp, basis$S, k),
-    #    loglikelihood_pen_grad(par, basis$X, data$y, data$c - 1, sp, basis$S, k),
-    #    loglikelihood_pen_hess(par, basis$X, data$y, data$c - 1, sp, basis$S, k)
+    #    loglikelihood_pen(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1),
+    #    loglikelihood_pen_grad(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1),
+    #    loglikelihood_pen_hess(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
     #)
     #' timings similar to passing in beta: doing transform does not add too much cost
     #' can do ~ 900 iterations per second with the gradient
@@ -101,7 +101,8 @@ test_that("checking for discontinuities", {
             c = cluster,
             sp = sp,
             S = S,
-            K = K
+            K = K,
+            alpha_index = 1
         )
     }
     
@@ -131,7 +132,8 @@ test_that("checking for discontinuities", {
         k = K
     )
     #' problematic!
-
+    expect_lt(diag_neg$min_ratio, 1e-5)
+    
     theta_pos <- opt_pos$par
     
     par_split_pos <- split_par(theta_pos, nbasis)
@@ -142,8 +144,6 @@ test_that("checking for discontinuities", {
         k = K
     )
     #' fine
-
-    
-
+    expect_gt(diag_pos$min_ratio, 1e-5)
     
 })

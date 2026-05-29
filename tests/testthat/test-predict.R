@@ -62,8 +62,7 @@ test_that("prediction with confidence interval works in cd4 example", {
                        x = times[col(Y.sub)[!is.na(Y.sub)]])
     
     mod <- fit_adastrumm(data_cd4)
-    y_hat_pred <- predict_adastrumm(mod, newdata = data_cd4, interval = TRUE)
-    
+    expect_no_error(y_hat_pred <- predict_adastrumm(mod, newdata = data_cd4, interval = TRUE))
 })
 
 test_that("prediction gives error if pred_data is not of correct form", {

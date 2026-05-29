@@ -8,11 +8,14 @@ test_that("Transform gives orthogonal columns", {
     set.seed(1)
     alpha <- rnorm(length(components))
 
-    beta <- find_beta(alpha, nbasis, k)
-
-    expect_equal(sum(beta[,2] * beta[,1]), 0)
-    expect_equal(sum(beta[,3] * beta[,1]), 0)
-    expect_equal(sum(beta[,3] * beta[,2]), 0)
+    for(alpha_index in seq_len(nbasis - k + 1)) {
+        beta <- find_beta(alpha, nbasis, k, alpha_index = alpha_index)
+        
+        expect_equal(sum(beta[,2] * beta[,1]), 0)
+        expect_equal(sum(beta[,3] * beta[,1]), 0)
+        expect_equal(sum(beta[,3] * beta[,2]), 0)
+    }
+    
 })
 
 test_that("alpha to beta to alpha round trip works", {
