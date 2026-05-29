@@ -225,6 +225,10 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
         return(fit)
     }
 
+    choice$mod$alpha_ci_scores <- choice$scores
+    choice$mod$alpha_ci_candidates <- choice$candidates
+    choice$mod$alpha_ci_diagnostic <- householder_ci_diagnostic(choice$mod)
+    
     choice$mod
 }
 

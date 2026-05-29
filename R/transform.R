@@ -110,38 +110,46 @@ find_beta <- function(alpha, nbasis, k, alpha_index = 1) {
 householder_diagnostic <- function(alpha, nbasis, k,
                                    alpha_index = 1,
                                    eps = .Machine$double.eps) {
-  alpha_list <- split_alpha(alpha, nbasis, k)
+    if(k <= 1) {
+        return(list(
+            min_ratio = Inf,
+            ratios = numeric(0),
+            alpha_norms = numeric(0),
+            alpha_selected = numeric(0),
+            alpha_index = alpha_index
+        ))
+    }
+    alpha_list <- split_alpha(alpha, nbasis, k)
+    
+    
 
-  ## Only alpha_1, ..., alpha_{K-1} are used to construct subsequent
-  ## Householder transformations
-  if(k <= 1) {
-      return(list(
-          min_ratio = Inf,
-          ratios = numeric(0),
-          alpha_norms = numeric(0),
-          alpha_selected = numeric(0),
-          alpha_index = alpha_index
-      ))
-  }
-  
+    alpha_used <- alpha_list[seq_len(k - 1)]
 
-  alpha_used <- alpha_list[seq_len(k - 1)]
+    alpha_norms <- vapply(alpha_used, function(a) sqrt(sum(a^2)), numeric(1))
+    alpha_selected <- vapply(alpha_used, function(a) a[alpha_index], numeric(1))
 
-  alpha_norms <- vapply(alpha_used, function(a) sqrt(sum(a^2)), numeric(1))
-  alpha_selected <- vapply(alpha_used, function(a) a[alpha_index], numeric(1))
+    ratios <- abs(alpha_selected) / pmax(alpha_norms, eps)
 
-  ratios <- abs(alpha_selected) / pmax(alpha_norms, eps)
-
-  list(
-    min_ratio = min(ratios),
-    ratios = ratios,
-    alpha_norms = alpha_norms,
-    alpha_selected = alpha_selected,
-    alpha_index = alpha_index
-  )
+    list(
+        min_ratio = min(ratios),
+        ratios = ratios,
+        alpha_norms = alpha_norms,
+        alpha_selected = alpha_selected,
+        alpha_index = alpha_index
+    )
 }
 
 householder_ci_diagnostic <- function(mod, eps = .Machine$double.eps) {
+    if(mod$k <= 1) {
+        return(list(
+            min_z_to_boundary = Inf,
+            z_to_boundary = numeric(0),
+            selected_alpha = numeric(0),
+            selected_se = numeric(0),
+            alpha_index = mod$alpha_index
+        ))
+    }
+    
     V <- if(!is.null(mod$var_par)) {
              mod$var_par
          } else {
@@ -156,16 +164,6 @@ householder_ci_diagnostic <- function(mod, eps = .Machine$double.eps) {
         seq_along(mod$alpha),
         find_alpha_components(mod$basis$nbasis, mod$k)
     )
-
-    if(mod$k <= 1) {
-        return(list(
-            min_z_to_boundary = Inf,
-            z_to_boundary = numeric(0),
-            selected_alpha = numeric(0),
-            selected_se = numeric(0),
-            alpha_index = mod$alpha_index
-        ))
-    }
 
     selected_alpha_positions <- vapply(seq_len(mod$k - 1), function(j) {
         alpha_start + alpha_components[[j]][mod$alpha_index] - 1
