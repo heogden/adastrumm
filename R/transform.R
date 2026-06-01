@@ -281,3 +281,31 @@ maybe_switch_alpha_index_start <- function(beta0, beta, lsigma,
     list(par0 = c(beta0, alpha, lsigma),
          alpha_index = alpha_index)
 }
+
+order_beta_by_lambda <- function(beta) {
+    if(is.null(beta)) {
+        return(list(
+            beta = NULL,
+            lambda = NULL,
+            order = integer(0)
+        ))
+    }
+
+    lambda <- colSums(beta^2)
+
+    if(ncol(beta) <= 1) {
+        return(list(
+            beta = beta,
+            lambda = lambda,
+            order = seq_len(ncol(beta))
+        ))
+    }
+
+    ord <- order(lambda, decreasing = TRUE)
+
+    list(
+        beta = beta[, ord, drop = FALSE],
+        lambda = lambda[ord],
+        order = ord
+    )
+}

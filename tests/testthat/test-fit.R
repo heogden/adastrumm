@@ -243,7 +243,7 @@ test_that("fitted values and predictions don't depend on cluster ordering", {
                    x = times[col(Y.sub)[!is.na(Y.sub)]])
 
     cat("case 5 \n")
-    mod <- fit_adastrumm(data)
+    expect_silent(mod <- fit_adastrumm(data))
 
     y_hat <- fitted_adastrumm(mod)
     y_hat_pred <- predict_adastrumm(mod, newdata = data)

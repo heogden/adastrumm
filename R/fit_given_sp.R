@@ -328,7 +328,9 @@ fit_given_par0 <- function(data, sp, k, par0, basis, alpha_index = 1) {
     if(opt$convergence != 0)
         warning("optim has not converged")
      fit <- find_fit_info(opt, k, basis, sp, data, alpha_index)
-    
+
+     fit <- order_fit_components_by_lambda(fit, basis, data, sp)
+     
      fit
 }
 
@@ -444,7 +446,63 @@ fit_given_fit_km1 <- function(data, sp, k, fit_km1, basis,
     )
 }
 
+order_fit_components_by_lambda <- function(fit, basis, data, sp) {
+    if(fit$k <= 1 || is.null(fit$beta)) {
+        return(fit)
+    }
+
+    ordered <- order_beta_by_lambda(fit$beta)
+
+    if(identical(ordered$order, seq_len(fit$k))) {
+        return(fit)
+    }
+
+    par_new <- par_from_beta_parameterisation(
+        beta0 = fit$beta0,
+        beta = ordered$beta,
+        lsigma = fit$lsigma,
+        nbasis = basis$nbasis,
+        k = fit$k,
+        alpha_index = fit$alpha_index
+    )
+
+    opt_new <- fit$opt
+    opt_new$par <- par_new
+    opt_new$value <- fit$l_pen
+
+    if(!is.null(opt_new$message)) {
+        opt_new$message <- paste(
+            opt_new$message,
+            "Components reordered by decreasing lambda",
+            sep = "; "
+        )
+    } else {
+        opt_new$message <- "Components reordered by decreasing lambda"
+    }
+
+    find_fit_info(
+        opt = opt_new,
+        k = fit$k,
+        basis = basis,
+        sp = sp,
+        data = data,
+        alpha_index = fit$alpha_index
+    )
+}
+
+is_ordered_lambda <- function(lambda, tol = 1e-10) {
+    if(length(lambda) <= 1) {
+        return(TRUE)
+    }
+
+    all(diff(lambda) <= tol)
+}
+
 find_FVE <- function(mod) {
+    if(!is_ordered_lambda(mod$lambda)) {
+        stop("lambda is not ordered decreasingly; reorder components before computing FVE")
+    }
+
     cumsum(mod$lambda) / sum(mod$lambda)
 }
 

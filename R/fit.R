@@ -139,6 +139,7 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
             try(opt <- fit_given_par0_nlm(data, sp, fit$k, fit$par, basis, fit$alpha_index))
             if(length(opt) > 0) {    
                 fit <- find_fit_info(opt, fit$k, basis, sp, data, fit$alpha_index)
+                fit <- order_fit_components_by_lambda(fit, basis, data, sp)
                 fit <- add_hessian_and_log_ml(fit, basis, data)
                 fit <- maybe_reparameterise_after_hessian(
                     fit = fit,
