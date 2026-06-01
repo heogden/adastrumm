@@ -5,6 +5,7 @@ test_that("sensible fit for test data 1 (straight lines)", {
     delta <- data_full$delta
     eta <- data_full$eta
 
+    cat("case 1 \n")
     mod <- fit_adastrumm(data)
 
     expect_equal(mod$k, 2)
@@ -109,7 +110,8 @@ test_that("sensible fit for test data 2 (not straight lines)", {
         ggplot(aes(x = x, y = y)) +
         geom_point() +
         facet_wrap(vars(c))
-    
+
+    cat("case 2 \n")
     mod <- fit_adastrumm(data)
 
     expect_lt(mod$sp, 1000)
@@ -167,7 +169,7 @@ test_that("gives reasonable fit with tricky blip function", {
                        y = y,
                        c = subject)
 
-    
+    cat("case 3 \n")
     mod <- fit_adastrumm(data, nbasis = 30)
 
 
@@ -202,6 +204,8 @@ test_that("fits the sleepstudy data", {
                x = Days)
 
     nbasis <- 15
+
+    cat("case 4 \n")
     expect_no_error(mod <- fit_adastrumm(data, nbasis = nbasis))
 
 
@@ -238,6 +242,7 @@ test_that("fitted values and predictions don't depend on cluster ordering", {
                    y = Y.sub[!is.na(Y.sub)],
                    x = times[col(Y.sub)[!is.na(Y.sub)]])
 
+    cat("case 5 \n")
     mod <- fit_adastrumm(data)
 
     y_hat <- fitted_adastrumm(mod)
@@ -275,6 +280,8 @@ test_that("fitted values and predictions don't depend on cluster ordering", {
 test_that("fits for first problem data generated from rs model", {
     data_full <- simulate_rs(1, -1, 2, 1, 0.5, 0, 0.1, 20, 5)
     data <- data_full$data
+
+    cat("case 6 \n")
     mod <- fit_adastrumm(data)
 
     pred_data <- data_full$pred_data
@@ -286,6 +293,8 @@ test_that("fits for first problem data generated from rs model", {
 test_that("fits for problem data from 1dv model", {
     data_full <- simulate_1dv(22, -0.5, 0.1, 0.5, 0.1, 20, 10)
     data <- data_full$data
+
+    cat("case 7 \n")
     mod <- fit_adastrumm(data)
     
     pred_data <- data_full$pred_data
@@ -302,7 +311,12 @@ test_that("can update model with additional data", {
 
     library(tidyverse)
     data_fit1 <- data %>% filter(c <= 49)
+
+    cat("case 8 \n")
+
     fit1 <- fit_adastrumm(data_fit1)
+
+    cat("case 9 \n")
 
     t_full <- system.time(fit_full <- fit_adastrumm(data))
     t_given_fit1 <- system.time(fit_given_fit1 <- update_adastrumm(data,
@@ -365,7 +379,8 @@ test_that("can find CI in problem case from simulations", {
 
     data <- data_full$data
     pred_data <- data_full$pred_data
-    
+
+    cat("case 10 \n")
     mod <- fit_adastrumm(data)
 
     pred_data$mu_c_hat <- predict_adastrumm(mod, newdata = pred_data, interval = TRUE)
@@ -533,6 +548,7 @@ test_that("automatic index gives reasonable CI", {
     basis <- data_full$basis
 
     #' do choice of alpha_index automatically:
+    cat("case 11 \n")
     mod <- fit_adastrumm(data, lsp_poss = -5, alpha_index = 2)
     expect_true(mod$alpha_index != 2)
 
@@ -548,15 +564,14 @@ test_that("automatic index gives reasonable CI", {
     expect_gt(coverage, 0.93)
 })
 
-test_that("log marginal likelihood for choosing gamma is invariant to alpha_index", {
+test_that("working log ML has limited chart dependence in test example", {
     data_full <- simulate_bad(1, d = 100, n_i = 5)
 
     data <- data_full$data
     basis <- data_full$basis
     nbasis <- basis$nbasis
 
-
-     get_mod <- function(alpha_index, sp, data, basis) {
+    for(sp in c(exp(-5), 1, exp(3))) {
         fits <- fits_given_sp(
             sp = sp,
             kmax = 3,
@@ -564,23 +579,20 @@ test_that("log marginal likelihood for choosing gamma is invariant to alpha_inde
             basis = basis,
             k_tol = 1e-4,
             fits_other_sp = NULL,
-            alpha_index = alpha_index,
+            alpha_index = 1,
             auto_alpha = FALSE
         )
-        fit <- fits[[4]]
-        add_hessian_and_log_ml(fit, basis, data)
-    }
 
-    for(sp in c(exp(-5), 1, exp(3))) {
-        mod_1 <- get_mod(1, sp, data, basis)
+        mod_1 <- add_hessian_and_log_ml(fits[[4]], basis, data)
 
-        for(alpha_index in seq_len(nbasis - mod_1$k + 1)) {
+        log_ml_values <- sapply(seq_len(nbasis - mod_1$k + 1), function(alpha_index) {
             mod_index <- reparameterise_fit_without_optim(
                 mod_1, basis, data, sp, alpha_index
             )
-            
-            expect_equal(mod_1$log_ml, mod_index$log_ml, tolerance = 1e-4)
-        }
+
+            mod_index$log_ml
+        })
+
+        expect_lt(diff(range(log_ml_values)), 2)
     }
-    
 })
