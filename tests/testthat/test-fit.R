@@ -596,3 +596,23 @@ test_that("working log ML has limited chart dependence in test example", {
         expect_lt(diff(range(log_ml_values)), 2)
     }
 })
+
+
+test_that("estimated components are in order of size", {
+    library(tidyverse)
+    
+    #' modified from refund::ccb.fpc
+    #' obtain a subsample of the data with 25 subjects
+    set.seed(1236)
+    sample = sample(1:dim(refund::cd4)[1], 25)
+    Y.sub = refund::cd4[sample,]
+
+    times <- as.numeric(colnames(Y.sub))
+    data_unnorm <- tibble(c = row(Y.sub)[!is.na(Y.sub)],
+                          y = Y.sub[!is.na(Y.sub)],
+                          x = times[col(Y.sub)[!is.na(Y.sub)]])
+
+    mod <- fit_adastrumm(data_unnorm, trace = TRUE, lsp_poss = -5)
+
+    expect_equal(mod$lambda, sort(mod$lambda, decreasing = TRUE))
+}

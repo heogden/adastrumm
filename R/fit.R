@@ -105,15 +105,19 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
             auto_alpha = auto_alpha,
             alpha_tol = alpha_tol
         )
+
         
         if(is_k_larger_than_required(fits[[length(fits)]], k_tol))
             fit <- fits[[length(fits) - 1]]
         else
             fit <- fits[[length(fits)]]
-               
                                         
-        if(trace)
+        if(trace) {
             cat("k = ", fit$k, "\n")
+            cat("lambda = ", fit$lambda, "\n")
+            cat("FVE = ", find_FVE(fit), "\n")
+        }
+        
         fit <- add_hessian_and_log_ml(fit, basis, data)
         
         fit <- maybe_reparameterise_after_hessian(
