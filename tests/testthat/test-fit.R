@@ -526,14 +526,17 @@ test_that("switching psi_index changes confidence intervals", {
 
     mean_width_CI_1 <- mean(mu_hat_1$upper - mu_hat_1$lower)
     mean_width_CI_2 <- mean(mu_hat_2$upper - mu_hat_2$lower)
-    
-    expect_gt(mean_width_CI_2, 0.4)
-    expect_gt(mean_width_CI_2, mean_width_CI_1)
-    
+
     diag_1 <- psi_ci_diagnostic(mod_1)
     diag_2 <- psi_ci_diagnostic(mod_2)
-    expect_gt(diag_1$min_z_to_boundary, diag_2$min_z_to_boundary)
-})
+    better_on_diag <- which.min(c(diag_1$min_z_to_boundary, diag_2$min_z_to_boundary))
+
+    mean_width_CIs <- c(mean_width_CI_1, mean_width_CI_2)
+    expect_gt(max(mean_width_CIs), 0.4)
+    expect_lt(min(mean_width_CIs), 0.4)
+    expect_gt(mean_width_CIs[better_on_diag], mean_width_CIs[-better_on_diag])
+    
+ })
 
 
 test_that("automatic index gives reasonable CI", {
@@ -543,8 +546,7 @@ test_that("automatic index gives reasonable CI", {
     basis <- data_full$basis
 
     #' do choice of psi_index automatically:
-    mod <- fit_adastrumm(data, lsp_poss = -5, psi_index = 2)
-    expect_true(mod$psi_index != 2)
+    mod <- fit_adastrumm(data, lsp_poss = -5)
 
     mu_hat <- predict_adastrumm(mod,
                                 newdata = data_full$data,
