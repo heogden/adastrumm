@@ -3,6 +3,10 @@ add_hessian_and_log_ml <- function(fit, basis, data) {
                                           X = basis$X, y = data$y, c = data$c - 1,
                                           sp = fit$sp, S = basis$S, K = fit$k,
                                           psi_index = fit$psi_index)
+
+    fit$hessian_ok <- is_neg_def(fit$hessian) &&
+        !matrixcalc::is.singular.matrix(fit$hessian)
+    
     var_par <- tryCatch(solve(-fit$hessian),
                         error = function(cond) {
                             pracma::pinv(-fit$hessian)
@@ -10,7 +14,21 @@ add_hessian_and_log_ml <- function(fit, basis, data) {
 
     fit$var_par <- 0.5 * (var_par + t(var_par))
     
-    fit$log_ml <- approx_log_ml(fit, fit$hessian, basis)
+    log_ml_try <- tryCatch(
+        approx_log_ml(fit, fit$hessian, basis),
+        error = function(cond) cond
+    )
+
+    if(inherits(log_ml_try, "error")) {
+        fit$log_ml <- -Inf
+        fit$log_ml_ok <- FALSE
+        fit$log_ml_error <- conditionMessage(log_ml_try)
+    } else {
+        fit$log_ml <- log_ml_try
+        fit$log_ml_ok <- is.finite(log_ml_try)
+        fit$log_ml_error <- NULL
+    }
+
     fit
 }
 
@@ -180,6 +198,8 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
     bad_hessian <- !is_neg_def(fit$hessian) ||
         matrixcalc::is.singular.matrix(fit$hessian)
 
+    bad_log_ml <- isFALSE(fit$log_ml_ok)
+    
     point_diag <- psi_diagnostic(
         fit$alpha,
         nbasis = basis$nbasis,
@@ -191,7 +211,7 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
 
     bad_point <- point_diag$min_ratio < psi_tol
 
-    if(bad_hessian || bad_point) {
+    if(bad_hessian || bad_log_ml || bad_point) {
         psi_index_new <- choose_psi_index_from_beta(
             fit$beta,
             nbasis = basis$nbasis,
