@@ -35,7 +35,7 @@ test_that("prediction reasonable outside of range of data", {
     mu <- data_full$mu
     delta <- data_full$delta
     eta <- data_full$eta
-
+    
     mod <- fit_adastrumm(data)
 
     x <- seq(min(data$x) - 0.1, max(data$x) + 0.1, length.out = 100)
@@ -60,13 +60,15 @@ test_that("prediction with confidence interval works in cd4 example", {
     data_cd4 <- tibble(c = row(Y.sub)[!is.na(Y.sub)],
                        y = Y.sub[!is.na(Y.sub)],
                        x = times[col(Y.sub)[!is.na(Y.sub)]])
-    
+
     mod <- fit_adastrumm(data_cd4)
     expect_no_error(y_hat_pred <- predict_adastrumm(mod, newdata = data_cd4, interval = TRUE))
 })
 
 test_that("prediction gives error if pred_data is not of correct form", {
+    set.seed(1)
     data <- data.frame(x = rnorm(100), y = rnorm(100), c = rep(1:10, each = 10))
+ 
     mod <- fit_adastrumm(data)
 
     expect_error(predict_adastrumm(mod, newdata = NULL),

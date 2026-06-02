@@ -24,10 +24,13 @@ normalise_data <- function(data, norm = NULL) {
 #' @param data A data frame, with columns c (identifying the
 #'     individual subjects), x (the time) and y (the response).
 #' @param nbasis The number of spline basis functions.
-#' @param kmax The maximum number of functional principal components
-#'     to allow.
-#' @param k_tol. The tolerance to use in selecting k, to explain at
+#' @param kmax The maximum number of random effect components to
+#'     allow.
+#' @param k_tol. A tolerance to use in selecting k, to explain at
 #'     least 1-k_tol of the variation in trajectories.
+#' @param lambda_tol. Another tolerance to use in selecting k: any
+#'     random effect components with variance less than lambda_tol are
+#'     removed.
 #' @param lsp_poss The grid of possible values to consider for
 #'     log(gamma), the log of the smoothing parameter.
 #' @param trace If TRUE, print out extra information.
@@ -47,8 +50,13 @@ normalise_data <- function(data, norm = NULL) {
 #' data <- data_full$data
 #' mod <- fit_adastrumm(data)
 #' @export
-fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
-                          lsp_poss = -5:15, trace = FALSE,
+fit_adastrumm <- function(data,
+                          nbasis = 10,
+                          kmax = 10,
+                          k_tol = 1e-4,
+                          lambda_tol = 1e-7,
+                          lsp_poss = -5:15,
+                          trace = FALSE,
                           psi_index = 1,
                           auto_psi = TRUE,
                           psi_tol = 1e-5,
@@ -98,6 +106,7 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
             data = data,
             basis = basis,
             k_tol = k_tol,
+            lambda_tol = lambda_tol,
             fits_other_sp = fits_other_sp,
             psi_index = psi_index,
             auto_psi = auto_psi,
@@ -105,15 +114,21 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
         )
 
         
-        if(is_k_larger_than_required(fits[[length(fits)]], k_tol))
+        if(is_k_larger_than_required(fits[[length(fits)]], k_tol, lambda_tol))
             fit <- fits[[length(fits) - 1]]
         else
             fit <- fits[[length(fits)]]
                                         
         if(trace) {
             cat("k = ", fit$k, "\n")
-            cat("lambda = ", fit$lambda, "\n")
-            cat("FVE = ", find_FVE(fit), "\n")
+            if(fit$k > 0) {
+                cat("lambda = ", fit$lambda, "\n")
+                cat("FVE = ", find_FVE(fit), "\n")
+            } else {
+                cat("lambda = none \n")
+                cat("FVE = none \n")
+            }
+            
         }
         
         fit <- add_hessian_and_log_ml(fit, basis, data)
@@ -153,7 +168,7 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
             }
             
             if(!is_neg_def(fit$hessian) | matrixcalc::is.singular.matrix(fit$hessian) | length(opt) == 0) {
-                if(fit$k > 1) {
+                if(fit$k > 0) {
                     message("fit from nlm failed or gave a non-negative definite or singular Hessian. Reducing k. ")
                     fit <- fits[[fit$k]]
                     fit <- add_hessian_and_log_ml(fit, basis, data)
@@ -188,7 +203,34 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
     }
 
     log_ml_sp_poss <- sapply(fit_sp_poss, "[[", "log_ml")
-    i_opt <- which.max(log_ml_sp_poss)
-    fit_sp_poss[[i_opt]]
+
+    best <- which.max(log_ml_sp_poss)
+    ord <- order(log_ml_sp_poss, decreasing = TRUE)
+    plausible <- ord[seq_len(min(3, length(ord)))]
+
+    if(length(ord) > 1) {
+        diff_log_ml <- log_ml_sp_poss[best] - log_ml_sp_poss[ord[2]]
+        
+        if(diff_log_ml < 1) {
+            psi_ref <- fit_sp_poss[[best]]$psi_index
+
+            ## Check the top few candidates in a common psi_index.
+            log_ml_plausible_common <- sapply(plausible, function(i) {
+                reparameterise_fit_without_optim(
+                    fit = fit_sp_poss[[i]],
+                    basis = basis,
+                    data = data,
+                    sp = fit_sp_poss[[i]]$sp,
+                    psi_index = psi_ref
+                )$log_ml
+            })
+
+            best_common <- plausible[which.max(log_ml_plausible_common)]
+
+            best <- best_common
+        }
+    }
+
+    fit_sp_poss[[best]]
 }
 

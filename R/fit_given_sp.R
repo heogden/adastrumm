@@ -530,13 +530,35 @@ find_FVE <- function(mod) {
 }
 
 
-is_k_larger_than_required <- function(mod, k_tol) {
-    FVE <-  find_FVE(mod)
+is_k_larger_than_required <- function(mod,
+                                      k_tol,
+                                      lambda_tol = 1e-7) {
+    lambda <- mod$lambda
+
+    ## Absolute-size rule: remove the final component if it is too small
+    ## to retain stably.
+    if (length(lambda) > 0 && tail(lambda, 1) <= lambda_tol) {
+        return(TRUE)
+    }
+
+    ## Relative-size rule: remove the final component if it contributes
+    ## negligible additional FVE.
+    FVE <- find_FVE(mod)
+
+    if (length(FVE) <= 1) {
+        return(FALSE)
+    }
+
     FVE[length(FVE) - 1] > 1 - k_tol
 }
 
 
-fits_given_sp <- function(sp, kmax, data, basis, k_tol,
+fits_given_sp <- function(sp,
+                          kmax,
+                          data,
+                          basis,
+                          k_tol,
+                          lambda_tol,
                           fits_other_sp = NULL,
                           psi_index = 1,
                           auto_psi = TRUE,
@@ -560,9 +582,8 @@ fits_given_sp <- function(sp, kmax, data, basis, k_tol,
             psi_tol = psi_tol
         )
         
-        if(k > 1)
-            if(is_k_larger_than_required(fits[[k+1]], k_tol))
-                break
+        if(is_k_larger_than_required(fits[[k+1]], k_tol, lambda_tol))
+            break
     }
     fits
 }

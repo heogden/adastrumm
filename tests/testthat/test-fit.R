@@ -504,6 +504,7 @@ test_that("switching psi_index changes confidence intervals", {
             data = data,
             basis = basis,
             k_tol = 1e-4,
+            lambda_tol = 1e-7,
             fits_other_sp = NULL,
             psi_index = psi_index,
             auto_psi = FALSE
@@ -574,6 +575,7 @@ test_that("working log ML has limited parameterisation dependence in test exampl
             data = data,
             basis = basis,
             k_tol = 1e-4,
+            lambda_tol = 1e-7,
             fits_other_sp = NULL,
             psi_index = 1,
             auto_psi = FALSE
@@ -625,6 +627,7 @@ test_that("approximate psi CI scores are close enough to exact scores", {
         data = data,
         basis = basis,
         k_tol = 1e-4,
+        lambda_tol = 1e-7,
         fits_other_sp = NULL,
         psi_index = 1,
         auto_psi = FALSE
@@ -672,6 +675,7 @@ test_that("approx_cov_for_psi_index preserves covariance for current psi_index",
         data = data,
         basis = basis,
         k_tol = 1e-4,
+        lambda_tol = 1e-7,
         fits_other_sp = NULL,
         psi_index = 1,
         auto_psi = FALSE
@@ -697,6 +701,7 @@ test_that("maybe_switch_psi_for_ci_approx improves bad CI diagnostic", {
         data = data,
         basis = basis,
         k_tol = 1e-4,
+        lambda_tol = 1e-7,
         fits_other_sp = NULL,
         psi_index = 2,
         auto_psi = FALSE
@@ -738,6 +743,7 @@ test_that("point diagnostic branch can reparameterise without error", {
         data = data,
         basis = basis,
         k_tol = 1e-4,
+        lambda_tol = 1e-7,
         fits_other_sp = NULL,
         psi_index = 1,
         auto_psi = FALSE
@@ -758,4 +764,16 @@ test_that("point diagnostic branch can reparameterise without error", {
     expect_equal(mod2$k, mod$k)
     expect_true(is.finite(mod2$l_pen))
     expect_true(is.finite(mod2$log_ml))
+})
+
+test_that("Using lambda_tol drops very small components for large sp", {
+    set.seed(2)
+    data <- data.frame(x = rnorm(100), y = rnorm(100), c = rep(1:10, each = 10))
+
+    lsp_poss <- 7
+    mod <- fit_adastrumm(data, lsp_poss = lsp_poss)
+    
+    suppressMessages(mod_no_lambda_tol <- fit_adastrumm(data, lsp_poss = lsp_poss, lambda_tol = 0))
+    
+    expect_true(mod$k < mod_no_lambda_tol$k)
 })

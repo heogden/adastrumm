@@ -9,6 +9,7 @@ fit_adastrumm(
   nbasis = 10,
   kmax = 10,
   k_tol = 1e-04,
+  lambda_tol = 1e-07,
   lsp_poss = -5:15,
   trace = FALSE,
   psi_index = 1,
@@ -24,8 +25,8 @@ individual subjects), x (the time) and y (the response).}
 
 \item{nbasis}{The number of spline basis functions.}
 
-\item{kmax}{The maximum number of functional principal components
-to allow.}
+\item{kmax}{The maximum number of random effect components to
+allow.}
 
 \item{lsp_poss}{The grid of possible values to consider for
 log(gamma), the log of the smoothing parameter.}
@@ -47,8 +48,12 @@ used to trigger automatic psi-parameterisation switching.}
 \item{normalise}{Logical; if TRUE, automatically normalise the data
 (response and covariate) to mean 0, variance 1.}
 
-\item{k_tol.}{The tolerance to use in selecting k, to explain at
+\item{k_tol.}{A tolerance to use in selecting k, to explain at
 least 1-k_tol of the variation in trajectories.}
+
+\item{lambda_tol.}{Another tolerance to use in selecting k: any
+random effect components with variance less than lambda_tol are
+removed.}
 }
 \value{
 The fitted model.
