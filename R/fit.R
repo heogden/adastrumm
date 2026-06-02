@@ -203,34 +203,7 @@ fit_adastrumm <- function(data,
     }
 
     log_ml_sp_poss <- sapply(fit_sp_poss, "[[", "log_ml")
-
     best <- which.max(log_ml_sp_poss)
-    ord <- order(log_ml_sp_poss, decreasing = TRUE)
-    plausible <- ord[seq_len(min(3, length(ord)))]
-
-    if(length(ord) > 1) {
-        diff_log_ml <- log_ml_sp_poss[best] - log_ml_sp_poss[ord[2]]
-        
-        if(diff_log_ml < 1) {
-            psi_ref <- fit_sp_poss[[best]]$psi_index
-
-            ## Check the top few candidates in a common psi_index.
-            log_ml_plausible_common <- sapply(plausible, function(i) {
-                reparameterise_fit_without_optim(
-                    fit = fit_sp_poss[[i]],
-                    basis = basis,
-                    data = data,
-                    sp = fit_sp_poss[[i]]$sp,
-                    psi_index = psi_ref
-                )$log_ml
-            })
-
-            best_common <- plausible[which.max(log_ml_plausible_common)]
-
-            best <- best_common
-        }
-    }
-
     fit_sp_poss[[best]]
 }
 

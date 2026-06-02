@@ -597,7 +597,6 @@ test_that("working log ML has small numerical parameterisation dependence in tes
     }
 })
 
-
 test_that("estimated components are in order of size", {
     library(tidyverse)
     
