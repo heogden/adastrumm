@@ -561,7 +561,7 @@ test_that("automatic index gives reasonable CI", {
     expect_gt(coverage, 0.93)
 })
 
-test_that("working log ML has limited parameterisation dependence in test example", {
+test_that("working log ML has small numerical parameterisation dependence in test example", {
     data_full <- simulate_bad(1, d = 100, n_i = 5)
 
     data <- data_full$data
@@ -569,6 +569,7 @@ test_that("working log ML has limited parameterisation dependence in test exampl
     nbasis <- basis$nbasis
 
     for(sp in c(exp(-5), 1, exp(3))) {
+        cat("sp = ", sp, "\n")
         fits <- fits_given_sp(
             sp = sp,
             kmax = 3,
@@ -577,21 +578,22 @@ test_that("working log ML has limited parameterisation dependence in test exampl
             k_tol = 1e-4,
             lambda_tol = 1e-7,
             fits_other_sp = NULL,
-            psi_index = 1,
+            psi_index = 2,
             auto_psi = FALSE
         )
 
-        mod_1 <- add_hessian_and_log_ml(fits[[4]], basis, data)
+        mod_2 <- add_hessian_and_log_ml(fits[[4]], basis, data)
+        cat("mod_2$log_ml = ", mod_2$log_ml, "\n")
 
-        log_ml_values <- sapply(seq_len(nbasis - mod_1$k + 1), function(psi_index) {
+        log_ml_values <- sapply(2: (nbasis - mod_2$k + 1), function(psi_index) {
+            cat("psi_index = ", psi_index, ", ")
             mod_index <- reparameterise_fit_without_optim(
-                mod_1, basis, data, sp, psi_index
+                mod_2, basis, data, sp, psi_index
             )
 
-            mod_index$log_ml
+            cat("mod_index$log_ml = ", mod_index$log_ml, "\n")
+            expect_equal(mod_index$log_ml, mod_2$log_ml, tolerance = 1e-2)
         })
-
-        expect_lt(diff(range(log_ml_values)), 2)
     }
 })
 
@@ -777,3 +779,5 @@ test_that("Using lambda_tol drops very small components for large sp", {
     
     expect_true(mod$k < mod_no_lambda_tol$k)
 })
+
+

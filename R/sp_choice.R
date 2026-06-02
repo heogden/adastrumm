@@ -1,30 +1,54 @@
-correct_lprior <- function(fit, basis) {
-    k <- fit$k
-    if(k > 1) {
-        T_list <- find_T_list(fit$alpha, basis$nbasis, fit$k, fit$psi_index)
-    }
-    
-    S <- basis$S
+make_J_zeta <- function(fit, basis) {
     nbasis <- basis$nbasis
-    contrib <- c()
+    k <- fit$k
 
-    for(j in 0:k) {
-        if(j > 1) {
-            T_j <- T_list[[j]]
-            S_j <- t(T_j) %*% S %*% T_j
-        } else {
-            S_j <- S
-        }
-        r_j <- min(nbasis - 2, nbasis - j + 1)
-        ldg_S_j_spr <- log_det_gen(S_j, r_j) + r_j * (log(fit$sp) - 2 * fit$lsigma)
-        contrib[j+1] <- -r_j * log(2 * pi) / 2 + ldg_S_j_spr / 2
+    if(k == 0) {
+        return(diag(nbasis))
     }
 
-    sum(contrib)
+    J_alpha <- jac_beta_alpha(
+        alpha = fit$alpha,
+        K = k,
+        n_B = nbasis,
+        psi_index = fit$psi_index
+    )
+
+    Matrix::bdiag(diag(nbasis), J_alpha) |>
+        as.matrix()
+}
+
+make_P_beta <- function(fit, basis) {
+    nbasis <- basis$nbasis
+    k <- fit$k
+
+    ## Penalty on beta0, beta1, ..., betaK
+    S_blocks <- replicate(k + 1, basis$S, simplify = FALSE)
+
+    P0 <- Matrix::bdiag(S_blocks) |>
+        as.matrix()
+
+    (fit$sp / fit$sigma^2) * P0
 }
 
 approx_log_ml <- function(fit, hessian, basis) {
-    p <- nrow(hessian)
-    fit$l_pen + correct_lprior(fit, basis) + p/2 * log(2*pi) - 1/2 * log_det(hessian)
-}
+    J_zeta <- make_J_zeta(fit, basis)
+    G_zeta <- t(J_zeta) %*% J_zeta
+    G_zeta <- (G_zeta + t(G_zeta)) / 2
 
+    P_beta <- make_P_beta(fit, basis)
+    P_zeta <- t(J_zeta) %*% P_beta %*% J_zeta
+    P_zeta <- (P_zeta + t(P_zeta)) / 2
+
+    H_zeta <- -hessian[seq_len(nrow(hessian) - 1),
+                       seq_len(ncol(hessian) - 1),
+                       drop = FALSE]
+    H_zeta <- (H_zeta + t(H_zeta)) / 2
+
+    P_rel <- log_det_relative(P_zeta, G_zeta, pseudo = TRUE)
+    H_rel <- log_det_relative(H_zeta, G_zeta, pseudo = FALSE)
+
+    fit$l_pen +
+        0.5 * P_rel$log_det -
+        0.5 * H_rel$log_det +
+        0.5 * P_rel$null_dim * log(2 * pi)
+}
