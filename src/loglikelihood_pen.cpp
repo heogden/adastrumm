@@ -151,15 +151,15 @@ struct loglikp_func {
 
   // function definition
   template <typename T>
-  T operator()(const Eigen::Matrix<T, Eigen::Dynamic, 1> &theta) const {
-    T log_sigma = theta.tail(1)[0];
+  T operator()(const Eigen::Matrix<T, Eigen::Dynamic, 1> &psi) const {
+    T log_sigma = psi.tail(1)[0];
     T sigma = stan::math::exp(log_sigma);
     T tau= 1 / (sigma * sigma);
 
-    Eigen::Matrix<T, Eigen::Dynamic, 1> beta_0 = theta.head(n_B);
+    Eigen::Matrix<T, Eigen::Dynamic, 1> beta_0 = psi.head(n_B);
 
     // The correct number of alpha parameters is K * n_B - K * (K - 1) / 2
-    Eigen::Matrix<T, Eigen::Dynamic, 1> alpha = theta.segment(n_B, K * n_B - K * (K - 1) / 2);
+    Eigen::Matrix<T, Eigen::Dynamic, 1> alpha = psi.segment(n_B, K * n_B - K * (K - 1) / 2);
     Eigen::Matrix<T, Eigen::Dynamic, 1> beta = find_beta(alpha, K, n_B, psi_index0);
     
     std::vector<T> l_contribs;
@@ -221,7 +221,7 @@ struct loglikp_func {
 };
   
 // [[Rcpp::export]]
-double loglikelihood_pen(Eigen::VectorXd theta,
+double loglikelihood_pen(Eigen::VectorXd psi,
 			 Eigen::MatrixXd X,
 			 Eigen::VectorXd y,
 			 std::vector<int> c,
@@ -236,12 +236,12 @@ double loglikelihood_pen(Eigen::VectorXd theta,
   size_t psi_index0 = psi_index - 1;
   
   loglikp_func lf(X, y, c, sp, S, K, psi_index0);
-  return lf(theta);
+  return lf(psi);
 }
 
 
 // [[Rcpp::export]]
-NumericVector loglikelihood_pen_grad(Eigen::VectorXd theta,
+NumericVector loglikelihood_pen_grad(Eigen::VectorXd psi,
 				     Eigen::MatrixXd X,
 				     Eigen::VectorXd y,
 				     std::vector<int> c,
@@ -261,7 +261,7 @@ NumericVector loglikelihood_pen_grad(Eigen::VectorXd theta,
 
   loglikp_func lf(X, y, c, sp, S, K, psi_index0);
 
-  stan::math::gradient(lf, theta, l, grad_l);
+  stan::math::gradient(lf, psi, l, grad_l);
 
   
   // reformat returned result
@@ -272,7 +272,7 @@ NumericVector loglikelihood_pen_grad(Eigen::VectorXd theta,
 
 
 // [[Rcpp::export]]
-NumericVector loglikelihood_pen_hess(Eigen::VectorXd theta,
+NumericVector loglikelihood_pen_hess(Eigen::VectorXd psi,
 				     Eigen::MatrixXd X,
 				     Eigen::VectorXd y,
 				     std::vector<int> c,
@@ -293,7 +293,7 @@ NumericVector loglikelihood_pen_hess(Eigen::VectorXd theta,
 
   loglikp_func lf(X, y, c, sp, S, K, psi_index0);
 
-  stan::math::hessian(lf, theta, l, grad_l, hess_l);
+  stan::math::hessian(lf, psi, l, grad_l, hess_l);
 
   
   // reformat returned result

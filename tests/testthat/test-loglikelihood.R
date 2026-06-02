@@ -87,15 +87,15 @@ test_that("checking for discontinuities", {
           1, 1)      # alpha_2
     }
     
-    theta_at_t <- function(t, sigma = 0.2) {
+    psi_at_t <- function(t, sigma = 0.2) {
         beta0 <- rep(0, nbasis)
         alpha <- make_alpha(t)
         c(beta0, alpha, log(sigma))
     }
 
-    l <- function(theta) {
+    l <- function(psi) {
         loglikelihood_pen(
-            theta,
+            psi,
             X = X,
             y = y,
             c = cluster,
@@ -107,7 +107,7 @@ test_that("checking for discontinuities", {
     }
     
     ll <- function(t) {
-        l(theta_at_t(t))
+        l(psi_at_t(t))
     }
 
     t_grid <- c(-1e-3, -1e-4, -1e-6, -1e-8, 1e-8, 1e-6, 1e-4, 1e-3)
@@ -115,16 +115,16 @@ test_that("checking for discontinuities", {
     l_grid <- sapply(t_grid, ll)
     plot(t_grid, l_grid, type = "l")
 
-    theta0_pos <- theta_at_t(1e-8)
-    theta0_neg <- theta_at_t(-1e-8)
+    psi0_pos <- psi_at_t(1e-8)
+    psi0_neg <- psi_at_t(-1e-8)
 
-    opt_pos <- optim(theta0_pos, l, method = "BFGS", control = list(fnscale = -1))
-    opt_neg <- optim(theta0_neg, l, method = "BFGS", control = list(fnscale = -1))
+    opt_pos <- optim(psi0_pos, l, method = "BFGS", control = list(fnscale = -1))
+    opt_neg <- optim(psi0_neg, l, method = "BFGS", control = list(fnscale = -1))
     #' get convergence to different values
 
-    theta_neg <- opt_neg$par
+    psi_neg <- opt_neg$par
     
-    psi_split_neg <- split_psi(theta_neg, nbasis)
+    psi_split_neg <- split_psi(psi_neg, nbasis)
 
     diag_neg <- psi_diagnostic(
         alpha = psi_split_neg$alpha,
@@ -134,9 +134,9 @@ test_that("checking for discontinuities", {
     #' problematic!
     expect_lt(diag_neg$min_ratio, 1e-5)
     
-    theta_pos <- opt_pos$par
+    psi_pos <- opt_pos$par
     
-    psi_split_pos <- split_psi(theta_pos, nbasis)
+    psi_split_pos <- split_psi(psi_pos, nbasis)
 
     diag_pos <- psi_diagnostic(
         alpha = psi_split_pos$alpha,
