@@ -13,3 +13,7 @@ loglikelihood_pen_hess <- function(psi, X, y, c, sp, S, K, psi_index) {
     .Call(`_adastrumm_loglikelihood_pen_hess`, psi, X, y, c, sp, S, K, psi_index)
 }
 
+jac_beta_alpha <- function(alpha, K, n_B, psi_index) {
+    .Call(`_adastrumm_jac_beta_alpha`, alpha, K, n_B, psi_index)
+}
+

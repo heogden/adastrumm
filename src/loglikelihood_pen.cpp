@@ -219,7 +219,23 @@ struct loglikp_func {
     return l - pen;
   }
 };
-  
+
+
+struct beta_alpha_func {
+  const size_t K;
+  const size_t n_B;
+  const size_t psi_index0;
+
+  beta_alpha_func(size_t K_, size_t n_B_, size_t psi_index0_) :
+    K(K_), n_B(n_B_), psi_index0(psi_index0_) {}
+
+  template <typename T>
+  Eigen::Matrix<T, Eigen::Dynamic, 1>
+  operator()(const Eigen::Matrix<T, Eigen::Dynamic, 1>& alpha) const {
+    return find_beta(alpha, K, n_B, psi_index0);
+  }
+};
+
 // [[Rcpp::export]]
 double loglikelihood_pen(Eigen::VectorXd psi,
 			 Eigen::MatrixXd X,
@@ -300,4 +316,41 @@ NumericVector loglikelihood_pen_hess(Eigen::VectorXd psi,
   NumericMatrix hess_l1 = wrap(hess_l);
 
   return hess_l1;
+}
+
+// [[Rcpp::export]]
+NumericMatrix jac_beta_alpha(Eigen::VectorXd alpha,
+                             size_t K,
+                             size_t n_B,
+                             size_t psi_index) {
+  if(psi_index < 1) {
+    throw std::runtime_error("psi_index must be at least 1");
+  }
+
+  if(K > n_B) {
+    throw std::runtime_error("K must be no larger than n_B");
+  }
+
+  if(psi_index > n_B - K + 1) {
+    throw std::runtime_error("psi_index is too large for this K and n_B");
+  }
+  
+  size_t psi_index0 = psi_index - 1;
+
+
+  size_t n_alpha = K * n_B - K * (K - 1) / 2;
+
+  if(static_cast<size_t>(alpha.size()) != n_alpha) {
+    throw std::runtime_error("alpha has incorrect length for this K and n_B");
+  }
+
+  Eigen::VectorXd beta;
+  Eigen::MatrixXd J;
+
+  beta_alpha_func f(K, n_B, psi_index0);
+
+  stan::math::jacobian(f, alpha, beta, J);
+
+  NumericMatrix J_out = wrap(J);
+  return J_out;
 }

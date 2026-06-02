@@ -612,3 +612,150 @@ test_that("estimated components are in order of size", {
 
     expect_equal(mod$lambda, sort(mod$lambda, decreasing = TRUE))
 })
+
+test_that("approximate psi CI scores are close enough to exact scores", {
+    data_full <- simulate_bad(1, d = 100, n_i = 5)
+    data <- data_full$data
+    basis <- data_full$basis
+    sp <- 1
+
+    fits <- fits_given_sp(
+        sp = sp,
+        kmax = 3,
+        data = data,
+        basis = basis,
+        k_tol = 1e-4,
+        fits_other_sp = NULL,
+        psi_index = 1,
+        auto_psi = FALSE
+    )
+
+    mod <- add_hessian_and_log_ml(fits[[4]], basis, data)
+
+    approx <- approx_psi_ci_scores(mod)
+
+    exact_scores <- vapply(approx$candidates, function(psi_index_new) {
+        mod_new <- reparameterise_fit_without_optim(
+            fit = mod,
+            basis = basis,
+            data = data,
+            sp = sp,
+            psi_index = psi_index_new
+        )
+
+        psi_ci_diagnostic(mod_new)$min_z_to_boundary
+    }, numeric(1))
+
+
+    best_approx <- approx$candidates[which.max(approx$scores)]
+    current_score <- psi_ci_diagnostic(mod)$min_z_to_boundary
+    
+    best_exact_score <- max(exact_scores)
+    best_approx_exact_score <- exact_scores[approx$candidates == best_approx]
+
+    if(best_approx != mod$psi_index) {
+        expect_gt(best_approx_exact_score, current_score)
+    }
+    expect_gt(best_approx_exact_score, best_exact_score - 0.5)
+
+})
+
+test_that("approx_cov_for_psi_index preserves covariance for current psi_index", {
+    data_full <- simulate_bad(1, d = 100, n_i = 5)
+    data <- data_full$data
+    basis <- data_full$basis
+    sp <- 1
+
+    fits <- fits_given_sp(
+        sp = sp,
+        kmax = 3,
+        data = data,
+        basis = basis,
+        k_tol = 1e-4,
+        fits_other_sp = NULL,
+        psi_index = 1,
+        auto_psi = FALSE
+    )
+
+    mod <- add_hessian_and_log_ml(fits[[4]], basis, data)
+
+    approx <- approx_cov_for_psi_index(mod, mod$psi_index)
+
+    expect_equal(approx$psi, mod$psi, tolerance = 1e-8)
+    expect_equal(approx$V, mod$var_par, tolerance = 1e-6)
+})
+
+test_that("maybe_switch_psi_for_ci_approx improves bad CI diagnostic", {
+    data_full <- simulate_bad(1, d = 200, n_i = 10)
+    data <- data_full$data
+    basis <- data_full$basis
+    sp <- 1
+
+    fits <- fits_given_sp(
+        sp = sp,
+        kmax = 3,
+        data = data,
+        basis = basis,
+        k_tol = 1e-4,
+        fits_other_sp = NULL,
+        psi_index = 2,
+        auto_psi = FALSE
+    )
+
+    mod <- add_hessian_and_log_ml(fits[[4]], basis, data)
+
+    diag_before <- psi_ci_diagnostic(mod)
+
+    skip_if(diag_before$min_z_to_boundary >= 2)
+
+    mod2 <- maybe_switch_psi_for_ci_approx(
+        fit = mod,
+        data = data,
+        sp = sp,
+        basis = basis,
+        psi_ci_tol = 2
+    )
+
+    diag_after <- psi_ci_diagnostic(mod2)
+
+    expect_gte(diag_after$min_z_to_boundary,
+               diag_before$min_z_to_boundary)
+
+    expect_equal(mod2$beta, mod$beta, tolerance = 1e-8)
+    expect_equal(mod2$beta0, mod$beta0, tolerance = 1e-8)
+    expect_equal(mod2$lsigma, mod$lsigma, tolerance = 1e-8)
+})
+
+test_that("point diagnostic branch can reparameterise without error", {
+    data_full <- simulate_bad(1, d = 100, n_i = 5)
+    data <- data_full$data
+    basis <- data_full$basis
+    sp <- 1
+
+    fits <- fits_given_sp(
+        sp = sp,
+        kmax = 3,
+        data = data,
+        basis = basis,
+        k_tol = 1e-4,
+        fits_other_sp = NULL,
+        psi_index = 1,
+        auto_psi = FALSE
+    )
+
+    mod <- add_hessian_and_log_ml(fits[[4]], basis, data)
+
+    mod2 <- maybe_reparameterise_after_hessian(
+        fit = mod,
+        data = data,
+        sp = sp,
+        basis = basis,
+        psi_tol = Inf,       # force bad_point_chart
+        psi_ci_tol = 2,
+        auto_psi = TRUE
+    )
+
+    expect_equal(mod2$k, mod$k)
+    expect_true(is.finite(mod2$l_pen))
+    expect_true(is.finite(mod2$log_ml))
+})

@@ -83,18 +83,19 @@ find_fit_info <- function(opt, k, basis, sp, data, psi_index) {
          basis = basis)    
 }
 
-reparameterise_fit_without_optim <- function(fit, basis, data, sp, psi_index_new) {
-    par_new <- psi_from_theta_parameterisation(
+
+reparameterise_fit_without_optim <- function(fit, basis, data, sp, psi_index) {
+    psi_new <- psi_from_theta_parameterisation(
         beta0 = fit$beta0,
         beta = fit$beta,
         lsigma = fit$lsigma,
         nbasis = basis$nbasis,
         k = fit$k,
-        psi_index = psi_index_new
+        psi_index = psi_index
     )
 
     opt_new <- list(
-        par = par_new,
+        par = psi_new,
         value = fit$l_pen,
         convergence = fit$opt$convergence,
         counts = fit$opt$counts,
@@ -107,52 +108,65 @@ reparameterise_fit_without_optim <- function(fit, basis, data, sp, psi_index_new
         basis = basis,
         sp = sp,
         data = data,
-        psi_index = psi_index_new
+        psi_index = psi_index
     )
 
     add_hessian_and_log_ml(fit_new, basis, data)
 }
 
-choose_psi_index_from_beta_ci <- function(fit, basis, data, sp) {
-    candidates <- seq_len(basis$nbasis - fit$k + 1)
 
-    mods <- lapply(candidates, function(psi_index) {
-        reparameterise_fit_without_optim(
-            fit = fit,
-            basis = basis,
-            data = data,
-            sp = sp,
-            psi_index_new = psi_index
-        )
-    })
+maybe_switch_psi_for_ci_approx <- function(fit, data, sp, basis,
+                                           psi_ci_tol = 2) {
+    ## This assumes the Hessian/var_par for the current fit is usable.
 
-    scores <- vapply(mods, function(mod) {
-        if(!is_neg_def(mod$hessian) ||
-           matrixcalc::is.singular.matrix(mod$hessian)) {
-            return(-Inf)
-        }
+    current_diag <- psi_ci_diagnostic(fit)
+    fit$psi_ci_diagnostic <- current_diag
 
-        psi_ci_diagnostic(mod)$min_z_to_boundary
-    }, numeric(1))
-
-
-    if(all(!is.finite(scores))) {
-        return(list(
-            psi_index = fit$psi_index,
-            mod = fit,
-            scores = scores,
-            candidates = candidates
-        ))
+    ## If the current index is OK, do not search/switch.
+    if(current_diag$min_z_to_boundary >= psi_ci_tol) {
+        return(fit)
     }
-    
-    best <- which.max(scores)
 
-    list(
-        psi_index = candidates[best],
-        mod = mods[[best]],
-        scores = scores,
-        candidates = candidates
+    ## Current index is bad: cheaply approximate candidate scores.
+    approx <- approx_psi_ci_scores(fit)
+
+    fit$psi_ci_scores_approx <- approx$scores
+    fit$psi_index_candidates_approx <- approx$candidates
+
+    valid <- is.finite(approx$scores)
+
+    if(!any(valid)) {
+        return(fit)
+    }
+
+    best_candidate <- approx$candidates[valid][which.max(approx$scores[valid])]
+
+    ## If the approximate best is the current index, keep current fit.
+    if(best_candidate == fit$psi_index) {
+        return(fit)
+    }
+
+    ## Now do the expensive exact check for the best approximate candidate only.
+    candidate_fit <- reparameterise_fit_without_optim(
+        fit = fit,
+        basis = basis,
+        data = data,
+        sp = sp,
+        psi_index = best_candidate
     )
+
+    candidate_diag <- psi_ci_diagnostic(candidate_fit)
+    candidate_fit$psi_ci_diagnostic <- candidate_diag
+    candidate_fit$psi_ci_scores_approx <- approx$scores
+    candidate_fit$psi_index_candidates_approx <- approx$candidates
+
+    ## Switch only if the exact diagnostic improves.
+    if(candidate_diag$min_z_to_boundary >
+       current_diag$min_z_to_boundary) {
+        return(candidate_fit)
+    }
+
+    fit
 }
 
 maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
@@ -173,9 +187,10 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
         psi_index = fit$psi_index
     )
 
+    fit$psi_diagnostic <- point_diag
+
     bad_point <- point_diag$min_ratio < psi_tol
 
-    ## If the fitted point/Hessian is bad, reoptimise in a better chart.
     if(bad_hessian || bad_point) {
         psi_index_new <- choose_psi_index_from_beta(
             fit$beta,
@@ -184,7 +199,19 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
         )
 
         if(psi_index_new == fit$psi_index) {
-            return(fit)
+            if(bad_hessian) {
+                return(fit)
+            }
+
+            return(
+                maybe_switch_psi_for_ci_approx(
+                    fit = fit,
+                    data = data,
+                    sp = sp,
+                    basis = basis,
+                    psi_ci_tol = psi_ci_tol
+                )
+            )
         }
 
         psi0_new <- psi_from_theta_parameterisation(
@@ -205,39 +232,32 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
             psi_index = psi_index_new
         )
 
-        return(add_hessian_and_log_ml(fit_new, basis, data))
+        fit_new <- add_hessian_and_log_ml(fit_new, basis, data)
+
+        if(!is_neg_def(fit_new$hessian) ||
+           matrixcalc::is.singular.matrix(fit_new$hessian)) {
+            return(fit_new)
+        }
+        
+        return(
+            maybe_switch_psi_for_ci_approx(
+                fit = fit_new,
+                data = data,
+                sp = sp,
+                basis = basis,
+                psi_ci_tol = psi_ci_tol
+            )
+        )
     }
 
-    ## Only use CI diagnostic when the Hessian is already usable.
-    ci_diag <- psi_ci_diagnostic(fit)
-    bad_ci <- ci_diag$min_z_to_boundary < psi_ci_tol
-
-    if(!bad_ci) {
-        fit$psi_ci_diagnostic <- ci_diag
-        return(fit)
-    }
-
-    choice <- choose_psi_index_from_beta_ci(
+    maybe_switch_psi_for_ci_approx(
         fit = fit,
-        basis = basis,
         data = data,
-        sp = sp
+        sp = sp,
+        basis = basis,
+        psi_ci_tol = psi_ci_tol
     )
-
-    if(choice$psi_index == fit$psi_index) {
-        fit$psi_ci_scores <- choice$scores
-        fit$psi_ci_candidates <- choice$candidates
-        fit$psi_ci_diagnostic <- ci_diag
-        return(fit)
-    }
-
-    choice$mod$psi_ci_scores <- choice$scores
-    choice$mod$psi_ci_candidates <- choice$candidates
-    choice$mod$psi_ci_diagnostic <- psi_ci_diagnostic(choice$mod)
-    
-    choice$mod
 }
-
 
 maybe_reparameterise_and_refit <- function(fit, data, sp, basis,
                                            psi_tol = 1e-5,

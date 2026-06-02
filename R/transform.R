@@ -107,80 +107,6 @@ find_beta <- function(alpha, nbasis, k, psi_index = 1) {
     beta
 }
 
-psi_diagnostic <- function(alpha, nbasis, k, psi_index = 1,
-                           eps = .Machine$double.eps) {
-    if(k <= 1) {
-        return(list(
-            min_ratio = Inf,
-            ratios = numeric(0),
-            alpha_norms = numeric(0),
-            alpha_selected = numeric(0),
-            psi_index = psi_index
-        ))
-    }
-    alpha_list <- split_alpha(alpha, nbasis, k)
-    
-    
-
-    alpha_used <- alpha_list[seq_len(k - 1)]
-
-    alpha_norms <- vapply(alpha_used, function(a) sqrt(sum(a^2)), numeric(1))
-    alpha_selected <- vapply(alpha_used, function(a) a[psi_index], numeric(1))
-
-    ratios <- abs(alpha_selected) / pmax(alpha_norms, eps)
-
-    list(
-        min_ratio = min(ratios),
-        ratios = ratios,
-        alpha_norms = alpha_norms,
-        alpha_selected = alpha_selected,
-        psi_index = psi_index
-    )
-}
-
-psi_ci_diagnostic <- function(mod, eps = .Machine$double.eps) {
-    if(mod$k <= 1) {
-        return(list(
-            min_z_to_boundary = Inf,
-            z_to_boundary = numeric(0),
-            selected_alpha = numeric(0),
-            selected_se = numeric(0),
-            psi_index = mod$psi_index
-        ))
-    }
-    
-    V <- if(!is.null(mod$var_par)) {
-             mod$var_par
-         } else {
-             solve(-mod$hessian)
-         }
-
-    se <- sqrt(pmax(diag(V), eps))
-
-    alpha_start <- length(mod$beta0) + 1
-
-    alpha_components <- split(
-        seq_along(mod$alpha),
-        find_alpha_components(mod$basis$nbasis, mod$k)
-    )
-
-    selected_alpha_positions <- vapply(seq_len(mod$k - 1), function(j) {
-        alpha_start + alpha_components[[j]][mod$psi_index] - 1
-    }, numeric(1))
-
-    selected_alpha <- mod$psi[selected_alpha_positions]
-    selected_se <- se[selected_alpha_positions]
-
-    z_to_boundary <- abs(selected_alpha) / pmax(selected_se, eps)
-
-    list(
-        min_z_to_boundary = min(z_to_boundary),
-        z_to_boundary = z_to_boundary,
-        selected_alpha = selected_alpha,
-        selected_se = selected_se,
-        psi_index = mod$psi_index
-    )
-}
 
 find_alpha_from_beta <- function(beta, nbasis, k, psi_index = 1) {
     if(is.vector(beta)) {
@@ -306,5 +232,176 @@ order_beta_by_lambda <- function(beta) {
         beta = beta[, ord, drop = FALSE],
         lambda = lambda[ord],
         order = ord
+    )
+}
+
+
+
+psi_diagnostic <- function(alpha, nbasis, k, psi_index = 1,
+                           eps = .Machine$double.eps) {
+    if(k <= 1) {
+        return(list(
+            min_ratio = Inf,
+            ratios = numeric(0),
+            alpha_norms = numeric(0),
+            alpha_selected = numeric(0),
+            psi_index = psi_index
+        ))
+    }
+    alpha_list <- split_alpha(alpha, nbasis, k)
+    
+    
+
+    alpha_used <- alpha_list[seq_len(k - 1)]
+
+    alpha_norms <- vapply(alpha_used, function(a) sqrt(sum(a^2)), numeric(1))
+    alpha_selected <- vapply(alpha_used, function(a) a[psi_index], numeric(1))
+
+    ratios <- abs(alpha_selected) / pmax(alpha_norms, eps)
+
+    list(
+        min_ratio = min(ratios),
+        ratios = ratios,
+        alpha_norms = alpha_norms,
+        alpha_selected = alpha_selected,
+        psi_index = psi_index
+    )
+}
+
+psi_ci_diagnostic_from_cov <- function(psi, V, nbasis, k, psi_index,
+                                       eps = .Machine$double.eps) {
+    if(k <= 1) {
+        return(list(
+            min_z_to_boundary = Inf,
+            z_to_boundary = numeric(0),
+            selected_alpha = numeric(0),
+            selected_se = numeric(0),
+            psi_index = psi_index
+        ))
+    }
+
+    psi_split <- split_psi(psi, nbasis)
+    alpha <- psi_split$alpha
+
+    V <- 0.5 * (V + t(V))
+    se <- sqrt(pmax(diag(V), eps))
+
+    alpha_start <- nbasis + 1
+
+    alpha_components <- split(
+        seq_along(alpha),
+        find_alpha_components(nbasis, k)
+    )
+
+    selected_alpha_positions <- vapply(seq_len(k - 1), function(j) {
+        alpha_start + alpha_components[[j]][psi_index] - 1
+    }, numeric(1))
+
+    selected_alpha <- psi[selected_alpha_positions]
+    selected_se <- se[selected_alpha_positions]
+
+    z_to_boundary <- abs(selected_alpha) / pmax(selected_se, eps)
+
+    list(
+        min_z_to_boundary = min(z_to_boundary),
+        z_to_boundary = z_to_boundary,
+        selected_alpha = selected_alpha,
+        selected_se = selected_se,
+        psi_index = psi_index
+    )
+}
+
+psi_ci_diagnostic <- function(mod, eps = .Machine$double.eps) {
+    psi_ci_diagnostic_from_cov(
+        psi = mod$psi,
+        V = mod$var_par,
+        nbasis = mod$basis$nbasis,
+        k = mod$k,
+        psi_index = mod$psi_index,
+        eps = eps
+    )
+}
+
+approx_cov_for_psi_index <- function(mod, psi_index_new) {
+    nbasis <- mod$basis$nbasis
+    k <- mod$k
+
+    if(k <= 1) {
+        return(list(
+            psi = mod$psi,
+            V = mod$var_par
+        ))
+    }
+
+    V_current <- 0.5 * (mod$var_par + t(mod$var_par))
+
+    G_current <- jac_beta_alpha(
+        alpha = mod$alpha,
+        K = k,
+        n_B = nbasis,
+        psi_index = mod$psi_index
+    )
+
+    alpha_new <- find_alpha_from_beta(
+        beta = mod$beta,
+        nbasis = nbasis,
+        k = k,
+        psi_index = psi_index_new
+    )
+
+    G_new <- jac_beta_alpha(
+        alpha = alpha_new,
+        K = k,
+        n_B = nbasis,
+        psi_index = psi_index_new
+    )
+
+    ## Approximate map d alpha_current -> d alpha_new.
+    A_alpha <- qr.solve(G_new, G_current)
+
+    A_full <- diag(length(mod$psi))
+
+    alpha_ind <- (nbasis + 1):(length(mod$psi) - 1)
+    A_full[alpha_ind, alpha_ind] <- A_alpha
+
+    V_new <- A_full %*% V_current %*% t(A_full)
+    V_new <- 0.5 * (V_new + t(V_new))
+
+    psi_new <- c(mod$beta0, alpha_new, mod$lsigma)
+
+    list(
+        psi = psi_new,
+        V = V_new,
+        A_alpha = A_alpha
+    )
+}
+
+approx_psi_ci_scores <- function(mod) {
+    nbasis <- mod$basis$nbasis
+    k <- mod$k
+
+    candidates <- seq_len(nbasis - k + 1)
+
+    scores <- vapply(candidates, function(psi_index_new) {
+        tryCatch({
+            approx <- approx_cov_for_psi_index(mod, psi_index_new)
+
+            diag <- psi_ci_diagnostic_from_cov(
+                psi = approx$psi,
+                V = approx$V,
+                nbasis = nbasis,
+                k = k,
+                psi_index = psi_index_new
+            )
+
+            diag$min_z_to_boundary
+        }, error = function(e) {
+            -Inf
+        })
+    }, numeric(1))
+
+    list(
+        candidates = candidates,
+        scores = scores
     )
 }

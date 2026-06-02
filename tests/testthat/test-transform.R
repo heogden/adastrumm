@@ -37,3 +37,42 @@ test_that("alpha to beta to alpha round trip works", {
         }
     }
 })
+
+
+test_that("jac_beta_alpha matches numerical Jacobian", {
+    set.seed(1)
+
+    for(nbasis in c(5, 8)) {
+        for(k in 1:3) {
+            nbasis <- case$nbasis
+            k <- case$k
+
+            n_alpha <- sum(nbasis - 0:(k - 1))
+            alpha <- rnorm(n_alpha, sd = 0.2)
+
+            for(psi_index in seq_len(nbasis - k + 1)) {
+                J_ad <- jac_beta_alpha(
+                    alpha = alpha,
+                    K = k,
+                    n_B = nbasis,
+                    psi_index = psi_index
+                )
+
+                J_num <- numDeriv::jacobian(
+                                       func = function(alpha_in) {
+                                           as.vector(find_beta(
+                                               alpha = alpha_in,
+                                               nbasis = nbasis,
+                                               k = k,
+                                               psi_index = psi_index
+                                           ))
+                                       },
+                                       x = alpha
+                                   )
+
+                expect_equal(J_ad, J_num, tolerance = 1e-5)
+            }
+        }
+    }
+   
+})

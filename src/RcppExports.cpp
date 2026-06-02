@@ -65,11 +65,26 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// jac_beta_alpha
+NumericMatrix jac_beta_alpha(Eigen::VectorXd alpha, size_t K, size_t n_B, size_t psi_index);
+RcppExport SEXP _adastrumm_jac_beta_alpha(SEXP alphaSEXP, SEXP KSEXP, SEXP n_BSEXP, SEXP psi_indexSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::VectorXd >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< size_t >::type K(KSEXP);
+    Rcpp::traits::input_parameter< size_t >::type n_B(n_BSEXP);
+    Rcpp::traits::input_parameter< size_t >::type psi_index(psi_indexSEXP);
+    rcpp_result_gen = Rcpp::wrap(jac_beta_alpha(alpha, K, n_B, psi_index));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_adastrumm_loglikelihood_pen", (DL_FUNC) &_adastrumm_loglikelihood_pen, 8},
     {"_adastrumm_loglikelihood_pen_grad", (DL_FUNC) &_adastrumm_loglikelihood_pen_grad, 8},
     {"_adastrumm_loglikelihood_pen_hess", (DL_FUNC) &_adastrumm_loglikelihood_pen_hess, 8},
+    {"_adastrumm_jac_beta_alpha", (DL_FUNC) &_adastrumm_jac_beta_alpha, 4},
     {NULL, NULL, 0}
 };
 
