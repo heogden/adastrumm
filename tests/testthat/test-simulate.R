@@ -13,6 +13,6 @@ test_that("simulation from fitted model works", {
     mod_sim <- fit_adastrumm(data_sim)
     expect_equal(mod_sim$k, 2)
 
-    expect_gt(cor(mod_sim$par, mod$par), 0.5)
+    expect_gt(cor(mod_sim$psi, mod$psi), 0.5)
 
 })

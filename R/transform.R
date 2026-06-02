@@ -107,9 +107,8 @@ find_beta <- function(alpha, nbasis, k, psi_index = 1) {
     beta
 }
 
-householder_diagnostic <- function(alpha, nbasis, k,
-                                   psi_index = 1,
-                                   eps = .Machine$double.eps) {
+psi_diagnostic <- function(alpha, nbasis, k, psi_index = 1,
+                           eps = .Machine$double.eps) {
     if(k <= 1) {
         return(list(
             min_ratio = Inf,
@@ -139,7 +138,7 @@ householder_diagnostic <- function(alpha, nbasis, k,
     )
 }
 
-householder_ci_diagnostic <- function(mod, eps = .Machine$double.eps) {
+psi_ci_diagnostic <- function(mod, eps = .Machine$double.eps) {
     if(mod$k <= 1) {
         return(list(
             min_z_to_boundary = Inf,
@@ -169,7 +168,7 @@ householder_ci_diagnostic <- function(mod, eps = .Machine$double.eps) {
         alpha_start + alpha_components[[j]][mod$psi_index] - 1
     }, numeric(1))
 
-    selected_alpha <- mod$par[selected_alpha_positions]
+    selected_alpha <- mod$psi[selected_alpha_positions]
     selected_se <- se[selected_alpha_positions]
 
     z_to_boundary <- abs(selected_alpha) / pmax(selected_se, eps)
@@ -223,14 +222,14 @@ choose_psi_index_from_beta <- function(beta, nbasis, k) {
         alpha <- find_alpha_from_beta(beta, nbasis = nbasis,
                                       k = k, psi_index = psi_index)
 
-        householder_diagnostic(alpha, nbasis = nbasis, k = k,
-                               psi_index = psi_index)$min_ratio
+        psi_diagnostic(alpha, nbasis = nbasis, k = k,
+                       psi_index = psi_index)$min_ratio
     })
 
     candidates[which.max(scores)]
 }
 
-par_from_beta_parameterisation <- function(beta0, beta, lsigma,
+psi_from_theta_parameterisation <- function(beta0, beta, lsigma,
                                            nbasis, k, psi_index) {
     alpha <- find_alpha_from_beta(beta,
                                   nbasis = nbasis,
@@ -263,10 +262,10 @@ maybe_switch_psi_index_start <- function(beta0, beta, lsigma,
                                   psi_index = psi_index)
 
     if(auto_psi && k > 1) {
-        diag <- householder_diagnostic(alpha,
-                                       nbasis = nbasis,
-                                       k = k,
-                                       psi_index = psi_index)
+        diag <- psi_diagnostic(alpha,
+                               nbasis = nbasis,
+                               k = k,
+                               psi_index = psi_index)
 
         if(diag$min_ratio < psi_tol) {
             psi_index <- choose_psi_index_from_beta(beta, nbasis, k)
@@ -278,7 +277,7 @@ maybe_switch_psi_index_start <- function(beta0, beta, lsigma,
         }
     }
 
-    list(par0 = c(beta0, alpha, lsigma),
+    list(psi0 = c(beta0, alpha, lsigma),
          psi_index = psi_index)
 }
 

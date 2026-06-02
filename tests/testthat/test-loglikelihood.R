@@ -9,26 +9,26 @@ test_that("derivatives of loglikelihood are correct", {
     alpha_components <- find_alpha_components(nbasis, k)
 
     set.seed(1)
-    par <- c(rnorm(nbasis + length(alpha_components), sd = 0.1), 1)
+    psi <- c(rnorm(nbasis + length(alpha_components), sd = 0.1), 1)
 
-    lp_grad <- loglikelihood_pen_grad(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
-    lp_hess <- loglikelihood_pen_hess(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
+    lp_grad <- loglikelihood_pen_grad(psi, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
+    lp_hess <- loglikelihood_pen_hess(psi, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
 
-    lp_fun <- function(par) {
-        loglikelihood_pen(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
+    lp_fun <- function(psi) {
+        loglikelihood_pen(psi, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
     }
 
-    lp_grad_man <- numDeriv::grad(lp_fun, par)
-    lp_hess_man <- numDeriv::hessian(lp_fun, par)
+    lp_grad_man <- numDeriv::grad(lp_fun, psi)
+    lp_hess_man <- numDeriv::hessian(lp_fun, psi)
 
     expect_equal(lp_grad, lp_grad_man)
     expect_equal(lp_hess, lp_hess_man)
 
     #library(microbenchmark)
     #microbenchmark(
-    #    loglikelihood_pen(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1),
-    #    loglikelihood_pen_grad(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1),
-    #    loglikelihood_pen_hess(par, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
+    #    loglikelihood_pen(psi, basis$X, data$y, data$c - 1, sp, basis$S, k, 1),
+    #    loglikelihood_pen_grad(psi, basis$X, data$y, data$c - 1, sp, basis$S, k, 1),
+    #    loglikelihood_pen_hess(psi, basis$X, data$y, data$c - 1, sp, basis$S, k, 1)
     #)
     #' timings similar to passing in beta: doing transform does not add too much cost
     #' can do ~ 900 iterations per second with the gradient
@@ -49,9 +49,9 @@ test_that("same beta with different psi_index gives same penalised log-likelihoo
 
     set.seed(1)
     lsigma <- 1
-    par <- c(rnorm(nbasis + length(alpha_components), sd = 0.1), lsigma)
-    beta0 <- par[1:nbasis]
-    alpha_1 <- par[-c((1:nbasis), length(par))]
+    psi <- c(rnorm(nbasis + length(alpha_components), sd = 0.1), lsigma)
+    beta0 <- psi[1:nbasis]
+    alpha_1 <- psi[-c((1:nbasis), length(psi))]
     beta <- find_beta(alpha_1, nbasis, k, 1)
     alpha_2 <- find_alpha_from_beta(beta, nbasis, k, 2)
     beta_from_alpha_2 <- find_beta(alpha_2, nbasis, k, 2)
@@ -124,10 +124,10 @@ test_that("checking for discontinuities", {
 
     theta_neg <- opt_neg$par
     
-    par_split_neg <- split_par(theta_neg, nbasis)
+    psi_split_neg <- split_psi(theta_neg, nbasis)
 
-    diag_neg <- householder_diagnostic(
-        alpha = par_split_neg$alpha,
+    diag_neg <- psi_diagnostic(
+        alpha = psi_split_neg$alpha,
         nbasis = nbasis,
         k = K
     )
@@ -136,10 +136,10 @@ test_that("checking for discontinuities", {
     
     theta_pos <- opt_pos$par
     
-    par_split_pos <- split_par(theta_pos, nbasis)
+    psi_split_pos <- split_psi(theta_pos, nbasis)
 
-    diag_pos <- householder_diagnostic(
-        alpha = par_split_pos$alpha,
+    diag_pos <- psi_diagnostic(
+        alpha = psi_split_pos$alpha,
         nbasis = nbasis,
         k = K
     )

@@ -1,5 +1,5 @@
 add_hessian_and_log_ml <- function(fit, basis, data) {
-    fit$hessian <- loglikelihood_pen_hess(fit$par,
+    fit$hessian <- loglikelihood_pen_hess(fit$psi,
                                           X = basis$X, y = data$y, c = data$c - 1,
                                           sp = fit$sp, S = basis$S, K = fit$k,
                                           psi_index = fit$psi_index)
@@ -16,11 +16,15 @@ add_hessian_and_log_ml <- function(fit, basis, data) {
 
 
 
-split_par <- function(par, nbasis) {
-    components <- rep("alpha", length(par))
+split_psi <- function(psi, nbasis) {
+    if(length(psi) < nbasis + 1) {
+        stop("psi is too short for the specified nbasis")
+    }
+    
+    components <- rep("alpha", length(psi))
     components[1:nbasis] <- "beta0"
-    components[length(par)] <- "lsigma"
-    split(par, components)
+    components[length(psi)] <- "lsigma"
+    split(psi, components)
 }
 
 find_par_cluster <- function(beta0, beta, u_hat) {
@@ -29,23 +33,23 @@ find_par_cluster <- function(beta0, beta, u_hat) {
 
 
 find_fit_info <- function(opt, k, basis, sp, data, psi_index) {
-    par <- opt$par
+    psi <- opt$par
     l_pen <- opt$value
-    par_split <- split_par(par, basis$nbasis)
+    psi_split <- split_psi(psi, basis$nbasis)
 
 
-    f0_x <- basis$X %*% par_split$beta0
-    f0 <- find_spline_fun(par_split$beta0, basis)
+    f0_x <- basis$X %*% psi_split$beta0
+    f0 <- find_spline_fun(psi_split$beta0, basis)
     
     if(k > 0) {
-        beta <- find_beta(par_split$alpha, basis$nbasis, k, psi_index)
+        beta <- find_beta(psi_split$alpha, basis$nbasis, k, psi_index)
         lambda <- colSums(beta^2)
         f_x <- basis$X %*% beta
-        u_hat_full <- find_u_hat(exp(par_split$lsigma), data, f0_x, f_x, var = TRUE)
+        u_hat_full <- find_u_hat(exp(psi_split$lsigma), data, f0_x, f_x, var = TRUE)
         u_hat <- u_hat_full$u_hat
         var_u_hat <- u_hat_full$var_u_hat
         f <- find_spline_fun(beta, basis)
-        par_cluster <- find_par_cluster(par_split$beta0, beta, u_hat)
+        par_cluster <- find_par_cluster(psi_split$beta0, beta, u_hat)
     } else {
         f <- NULL
         f_x <- matrix(nrow = length(data$x), ncol = 0)
@@ -58,15 +62,15 @@ find_fit_info <- function(opt, k, basis, sp, data, psi_index) {
 
     list(k = k,
          sp = sp,
-         par = par,
+         psi = psi,
          psi_index = psi_index,
          l_pen = l_pen,
          opt = opt,
-         beta0 = par_split$beta0,
-         alpha = par_split$alpha,
-         lsigma = par_split$lsigma,
+         beta0 = psi_split$beta0,
+         alpha = psi_split$alpha,
+         lsigma = psi_split$lsigma,
          beta = beta,
-         sigma = exp(par_split$lsigma),
+         sigma = exp(psi_split$lsigma),
          par_cluster = par_cluster,
          f0 = f0,
          f0_x = f0_x,
@@ -80,7 +84,7 @@ find_fit_info <- function(opt, k, basis, sp, data, psi_index) {
 }
 
 reparameterise_fit_without_optim <- function(fit, basis, data, sp, psi_index_new) {
-    par_new <- par_from_beta_parameterisation(
+    par_new <- psi_from_theta_parameterisation(
         beta0 = fit$beta0,
         beta = fit$beta,
         lsigma = fit$lsigma,
@@ -128,7 +132,7 @@ choose_psi_index_from_beta_ci <- function(fit, basis, data, sp) {
             return(-Inf)
         }
 
-        householder_ci_diagnostic(mod)$min_z_to_boundary
+        psi_ci_diagnostic(mod)$min_z_to_boundary
     }, numeric(1))
 
 
@@ -162,7 +166,7 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
     bad_hessian <- !is_neg_def(fit$hessian) ||
         matrixcalc::is.singular.matrix(fit$hessian)
 
-    point_diag <- householder_diagnostic(
+    point_diag <- psi_diagnostic(
         fit$alpha,
         nbasis = basis$nbasis,
         k = fit$k,
@@ -183,7 +187,7 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
             return(fit)
         }
 
-        par0_new <- par_from_beta_parameterisation(
+        psi0_new <- psi_from_theta_parameterisation(
             beta0 = fit$beta0,
             beta = fit$beta,
             lsigma = fit$lsigma,
@@ -192,11 +196,11 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
             psi_index = psi_index_new
         )
 
-        fit_new <- fit_given_par0(
+        fit_new <- fit_given_psi0(
             data = data,
             sp = sp,
             k = fit$k,
-            par0 = par0_new,
+            psi0 = psi0_new,
             basis = basis,
             psi_index = psi_index_new
         )
@@ -205,7 +209,7 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
     }
 
     ## Only use CI diagnostic when the Hessian is already usable.
-    ci_diag <- householder_ci_diagnostic(fit)
+    ci_diag <- psi_ci_diagnostic(fit)
     bad_ci <- ci_diag$min_z_to_boundary < psi_ci_tol
 
     if(!bad_ci) {
@@ -229,7 +233,7 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
 
     choice$mod$psi_ci_scores <- choice$scores
     choice$mod$psi_ci_candidates <- choice$candidates
-    choice$mod$psi_ci_diagnostic <- householder_ci_diagnostic(choice$mod)
+    choice$mod$psi_ci_diagnostic <- psi_ci_diagnostic(choice$mod)
     
     choice$mod
 }
@@ -242,7 +246,7 @@ maybe_reparameterise_and_refit <- function(fit, data, sp, basis,
         return(fit)
     }
 
-    diag <- householder_diagnostic(
+    diag <- psi_diagnostic(
         fit$alpha,
         nbasis = basis$nbasis,
         k = fit$k,
@@ -263,7 +267,7 @@ maybe_reparameterise_and_refit <- function(fit, data, sp, basis,
         return(fit)
     }
 
-    par0_new <- par_from_beta_parameterisation(
+    psi0_new <- psi_from_theta_parameterisation(
         beta0 = fit$beta0,
         beta = fit$beta,
         lsigma = fit$lsigma,
@@ -272,11 +276,11 @@ maybe_reparameterise_and_refit <- function(fit, data, sp, basis,
         psi_index = psi_index_new
     )
 
-    fit_given_par0(
+    fit_given_psi0(
         data = data,
         sp = sp,
         k = fit$k,
-        par0 = par0_new,
+        psi0 = psi0_new,
         basis = basis,
         psi_index = psi_index_new
     )
@@ -299,11 +303,11 @@ fit_given_start_beta <- function(data, sp, k,
         auto_psi = auto_psi
     )
 
-    fit <- fit_given_par0(
+    fit <- fit_given_psi0(
         data = data,
         sp = sp,
         k = k,
-        par0 = start$par0,
+        psi0 = start$psi0,
         basis = basis,
         psi_index = start$psi_index
     )
@@ -320,8 +324,8 @@ fit_given_start_beta <- function(data, sp, k,
     fit
 }
 
-fit_given_par0 <- function(data, sp, k, par0, basis, psi_index = 1) {
-     opt <- stats::optim(par0, loglikelihood_pen, loglikelihood_pen_grad,
+fit_given_psi0 <- function(data, sp, k, psi0, basis, psi_index = 1) {
+     opt <- stats::optim(psi0, loglikelihood_pen, loglikelihood_pen_grad,
                          X = basis$X, y = data$y, c = data$c - 1,
                          sp = sp, S = basis$S, K = k, psi_index = psi_index,
                          method = "BFGS", control = list(fnscale = -1, maxit = 10000))
@@ -334,20 +338,20 @@ fit_given_par0 <- function(data, sp, k, par0, basis, psi_index = 1) {
      fit
 }
 
-fit_given_par0_nlm <- function(data, sp, k, par0, basis, psi_index = 1) {
-    ml <- function(par) {
-        result <- -loglikelihood_pen(par, X = basis$X, y = data$y,
+fit_given_psi0_nlm <- function(data, sp, k, psi0, basis, psi_index = 1) {
+    ml <- function(psi) {
+        result <- -loglikelihood_pen(psi, X = basis$X, y = data$y,
                                      c = data$c - 1,
                                      sp = sp, S = basis$S,
                                      K = k, psi_index = psi_index)
-        gr <- -loglikelihood_pen_grad(par,
+        gr <- -loglikelihood_pen_grad(psi,
                                       X = basis$X, y = data$y, c = data$c - 1,
                                       sp = sp, S = basis$S, K = k,
                                       psi_index = psi_index)
         attr(result, "gradient") <- gr
         result
     }
-    opt_nlm <- stats::nlm(ml, par0, iterlim = 100000, check.analyticals = FALSE)
+    opt_nlm <- stats::nlm(ml, psi0, iterlim = 100000, check.analyticals = FALSE)
 
     # convert to format from optim
     list(par = opt_nlm$estimate,
@@ -370,9 +374,9 @@ fit_0 <- function(data, sp, basis, psi_index = 1) {
     resid <- data$y - y_hat_0
     sigma <- stats::sd(resid)
 
-    par0 <- c(beta_0, log(sigma))
+    psi0 <- c(beta_0, log(sigma))
     
-    fit_given_par0(data, sp, 0, par0, basis, psi_index)
+    fit_given_psi0(data, sp, 0, psi0, basis, psi_index)
 }
 
 find_start_beta_given_fit_km1 <- function(fit_km1, k, nbasis,
@@ -456,7 +460,7 @@ order_fit_components_by_lambda <- function(fit, basis, data, sp) {
         return(fit)
     }
 
-    par_new <- par_from_beta_parameterisation(
+    psi_new <- psi_from_theta_parameterisation(
         beta0 = fit$beta0,
         beta = ordered$beta,
         lsigma = fit$lsigma,
@@ -466,7 +470,7 @@ order_fit_components_by_lambda <- function(fit, basis, data, sp) {
     )
 
     opt_new <- fit$opt
-    opt_new$par <- par_new
+    opt_new$par <- psi_new
     opt_new$value <- fit$l_pen
 
     if(!is.null(opt_new$message)) {

@@ -1,4 +1,4 @@
-correct_lprior_alpha <- function(fit, basis) {
+correct_lprior <- function(fit, basis) {
     k <- fit$k
     if(k > 1) {
         T_list <- find_T_list(fit$alpha, basis$nbasis, fit$k, fit$psi_index)
@@ -25,6 +25,6 @@ correct_lprior_alpha <- function(fit, basis) {
 
 approx_log_ml <- function(fit, hessian, basis) {
     p <- nrow(hessian)
-    fit$l_pen + correct_lprior_alpha(fit, basis) + p/2 * log(2*pi) - 1/2 * log_det(hessian)
+    fit$l_pen + correct_lprior(fit, basis) + p/2 * log(2*pi) - 1/2 * log_det(hessian)
 }
 

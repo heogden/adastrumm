@@ -530,8 +530,8 @@ test_that("switching psi_index changes confidence intervals", {
     expect_gt(mean_width_CI_2, 0.4)
     expect_gt(mean_width_CI_2, mean_width_CI_1)
     
-    diag_1 <- householder_ci_diagnostic(mod_1)
-    diag_2 <- householder_ci_diagnostic(mod_2)
+    diag_1 <- psi_ci_diagnostic(mod_1)
+    diag_2 <- psi_ci_diagnostic(mod_2)
     expect_gt(diag_1$min_z_to_boundary, diag_2$min_z_to_boundary)
 })
 

@@ -18,14 +18,14 @@ find_u_sample_cluster <- function(cluster, sigma, data, f0_x, f_x) {
 find_sample <- function(id, mod) {
     set.seed(id)
     V <- 0.5 * (mod$var_par + t(mod$var_par))
-    par <- as.numeric(mvnfast::rmvn(1, mod$par, V))
+    psi <- as.numeric(mvnfast::rmvn(1, mod$psi, V))
 
-    par_split <- split_par(par, mod$basis$nbasis)
+    psi_split <- split_psi(psi, mod$basis$nbasis)
     
-    f0_x <- mod$basis$X %*% par_split$beta0
+    f0_x <- mod$basis$X %*% psi_split$beta0
 
     if(mod$k > 0) {
-        beta <- find_beta(par_split$alpha, mod$basis$nbasis, mod$k, mod$psi_index)
+        beta <- find_beta(psi_split$alpha, mod$basis$nbasis, mod$k, mod$psi_index)
         f_x <- mod$basis$X %*% beta
     } else {
         beta <- matrix(nrow = mod$basis$nbasis, ncol = 0)
@@ -38,7 +38,7 @@ find_sample <- function(id, mod) {
     u <- Reduce(rbind, comps)
     rownames(u) <- clusters
     
-    find_par_cluster(par_split$beta0, beta, u)
+    find_par_cluster(psi_split$beta0, beta, u)
 }
 
 #' Find parametric bootstrap samples from a fitted model

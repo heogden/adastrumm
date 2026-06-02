@@ -134,7 +134,7 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
         if(!is_neg_def(fit$hessian) | matrixcalc::is.singular.matrix(fit$hessian)) {
             message("fit from optim gave non-negative definite or singular Hessian. Trying with nlm. ")
             opt <- NULL
-            try(opt <- fit_given_par0_nlm(data, sp, fit$k, fit$par, basis, fit$psi_index))
+            try(opt <- fit_given_psi0_nlm(data, sp, fit$k, fit$psi, basis, fit$psi_index))
             if(length(opt) > 0) {    
                 fit <- find_fit_info(opt, fit$k, basis, sp, data, fit$psi_index)
                 fit <- order_fit_components_by_lambda(fit, basis, data, sp)
