@@ -11,10 +11,10 @@ fit_adastrumm(
   k_tol = 1e-04,
   lsp_poss = -5:15,
   trace = FALSE,
-  alpha_index = 1,
-  auto_alpha = TRUE,
-  alpha_tol = 1e-05,
-  alpha_ci_tol = 2,
+  psi_index = 1,
+  auto_psi = TRUE,
+  psi_tol = 1e-05,
+  psi_ci_tol = 2,
   normalise = TRUE
 )
 }
@@ -32,19 +32,17 @@ log(gamma), the log of the smoothing parameter.}
 
 \item{trace}{If TRUE, print out extra information.}
 
-\item{alpha_index}{Initial Householder reference coordinate to use
-for the alpha parameterisation. Defaults to 1.}
+\item{psi_index}{Initial index for the choice of psi
+parameterisation. Defaults to 1.}
 
-\item{auto_alpha}{Logical; if TRUE, automatically switches alpha
-parameterisation when the current Householder chart appears
-poorly conditioned.}
+\item{auto_psi}{Logical; if TRUE, automatically switches psi-
+parameterisation when diagnostics indicate switching is needed.}
 
-\item{alpha_tol}{Threshold for the Householder diagnostic used to
-trigger automatic alpha-parameterisation switching.}
+\item{psi_tol}{Threshold for the diagnostic used to trigger
+automatic psi-parameterisation switching.}
 
-\item{alpha_ci_tol}{Threshold for the Householder confidence
-interval diagnostic used to trigger automatic
-alpha-parameterisation switching.}
+\item{psi_ci_tol}{Threshold for the confidence interval diagnostic
+used to trigger automatic psi-parameterisation switching.}
 
 \item{normalise}{Logical; if TRUE, automatically normalise the data
 (response and covariate) to mean 0, variance 1.}

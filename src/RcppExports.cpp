@@ -12,8 +12,8 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // loglikelihood_pen
-double loglikelihood_pen(Eigen::VectorXd theta, Eigen::MatrixXd X, Eigen::VectorXd y, std::vector<int> c, double sp, Eigen::MatrixXd S, size_t K, size_t alpha_index);
-RcppExport SEXP _adastrumm_loglikelihood_pen(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP, SEXP alpha_indexSEXP) {
+double loglikelihood_pen(Eigen::VectorXd theta, Eigen::MatrixXd X, Eigen::VectorXd y, std::vector<int> c, double sp, Eigen::MatrixXd S, size_t K, size_t psi_index);
+RcppExport SEXP _adastrumm_loglikelihood_pen(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP, SEXP psi_indexSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -24,14 +24,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type sp(spSEXP);
     Rcpp::traits::input_parameter< Eigen::MatrixXd >::type S(SSEXP);
     Rcpp::traits::input_parameter< size_t >::type K(KSEXP);
-    Rcpp::traits::input_parameter< size_t >::type alpha_index(alpha_indexSEXP);
-    rcpp_result_gen = Rcpp::wrap(loglikelihood_pen(theta, X, y, c, sp, S, K, alpha_index));
+    Rcpp::traits::input_parameter< size_t >::type psi_index(psi_indexSEXP);
+    rcpp_result_gen = Rcpp::wrap(loglikelihood_pen(theta, X, y, c, sp, S, K, psi_index));
     return rcpp_result_gen;
 END_RCPP
 }
 // loglikelihood_pen_grad
-NumericVector loglikelihood_pen_grad(Eigen::VectorXd theta, Eigen::MatrixXd X, Eigen::VectorXd y, std::vector<int> c, double sp, Eigen::MatrixXd S, size_t K, size_t alpha_index);
-RcppExport SEXP _adastrumm_loglikelihood_pen_grad(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP, SEXP alpha_indexSEXP) {
+NumericVector loglikelihood_pen_grad(Eigen::VectorXd theta, Eigen::MatrixXd X, Eigen::VectorXd y, std::vector<int> c, double sp, Eigen::MatrixXd S, size_t K, size_t psi_index);
+RcppExport SEXP _adastrumm_loglikelihood_pen_grad(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP, SEXP psi_indexSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -42,14 +42,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type sp(spSEXP);
     Rcpp::traits::input_parameter< Eigen::MatrixXd >::type S(SSEXP);
     Rcpp::traits::input_parameter< size_t >::type K(KSEXP);
-    Rcpp::traits::input_parameter< size_t >::type alpha_index(alpha_indexSEXP);
-    rcpp_result_gen = Rcpp::wrap(loglikelihood_pen_grad(theta, X, y, c, sp, S, K, alpha_index));
+    Rcpp::traits::input_parameter< size_t >::type psi_index(psi_indexSEXP);
+    rcpp_result_gen = Rcpp::wrap(loglikelihood_pen_grad(theta, X, y, c, sp, S, K, psi_index));
     return rcpp_result_gen;
 END_RCPP
 }
 // loglikelihood_pen_hess
-NumericVector loglikelihood_pen_hess(Eigen::VectorXd theta, Eigen::MatrixXd X, Eigen::VectorXd y, std::vector<int> c, double sp, Eigen::MatrixXd S, size_t K, size_t alpha_index);
-RcppExport SEXP _adastrumm_loglikelihood_pen_hess(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP, SEXP alpha_indexSEXP) {
+NumericVector loglikelihood_pen_hess(Eigen::VectorXd theta, Eigen::MatrixXd X, Eigen::VectorXd y, std::vector<int> c, double sp, Eigen::MatrixXd S, size_t K, size_t psi_index);
+RcppExport SEXP _adastrumm_loglikelihood_pen_hess(SEXP thetaSEXP, SEXP XSEXP, SEXP ySEXP, SEXP cSEXP, SEXP spSEXP, SEXP SSEXP, SEXP KSEXP, SEXP psi_indexSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -60,8 +60,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type sp(spSEXP);
     Rcpp::traits::input_parameter< Eigen::MatrixXd >::type S(SSEXP);
     Rcpp::traits::input_parameter< size_t >::type K(KSEXP);
-    Rcpp::traits::input_parameter< size_t >::type alpha_index(alpha_indexSEXP);
-    rcpp_result_gen = Rcpp::wrap(loglikelihood_pen_hess(theta, X, y, c, sp, S, K, alpha_index));
+    Rcpp::traits::input_parameter< size_t >::type psi_index(psi_indexSEXP);
+    rcpp_result_gen = Rcpp::wrap(loglikelihood_pen_hess(theta, X, y, c, sp, S, K, psi_index));
     return rcpp_result_gen;
 END_RCPP
 }

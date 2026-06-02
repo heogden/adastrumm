@@ -2,7 +2,7 @@ add_hessian_and_log_ml <- function(fit, basis, data) {
     fit$hessian <- loglikelihood_pen_hess(fit$par,
                                           X = basis$X, y = data$y, c = data$c - 1,
                                           sp = fit$sp, S = basis$S, K = fit$k,
-                                          alpha_index = fit$alpha_index)
+                                          psi_index = fit$psi_index)
     var_par <- tryCatch(solve(-fit$hessian),
                         error = function(cond) {
                             pracma::pinv(-fit$hessian)
@@ -28,7 +28,7 @@ find_par_cluster <- function(beta0, beta, u_hat) {
 }
 
 
-find_fit_info <- function(opt, k, basis, sp, data, alpha_index) {
+find_fit_info <- function(opt, k, basis, sp, data, psi_index) {
     par <- opt$par
     l_pen <- opt$value
     par_split <- split_par(par, basis$nbasis)
@@ -38,7 +38,7 @@ find_fit_info <- function(opt, k, basis, sp, data, alpha_index) {
     f0 <- find_spline_fun(par_split$beta0, basis)
     
     if(k > 0) {
-        beta <- find_beta(par_split$alpha, basis$nbasis, k, alpha_index)
+        beta <- find_beta(par_split$alpha, basis$nbasis, k, psi_index)
         lambda <- colSums(beta^2)
         f_x <- basis$X %*% beta
         u_hat_full <- find_u_hat(exp(par_split$lsigma), data, f0_x, f_x, var = TRUE)
@@ -59,7 +59,7 @@ find_fit_info <- function(opt, k, basis, sp, data, alpha_index) {
     list(k = k,
          sp = sp,
          par = par,
-         alpha_index = alpha_index,
+         psi_index = psi_index,
          l_pen = l_pen,
          opt = opt,
          beta0 = par_split$beta0,
@@ -79,14 +79,14 @@ find_fit_info <- function(opt, k, basis, sp, data, alpha_index) {
          basis = basis)    
 }
 
-reparameterise_fit_without_optim <- function(fit, basis, data, sp, alpha_index_new) {
+reparameterise_fit_without_optim <- function(fit, basis, data, sp, psi_index_new) {
     par_new <- par_from_beta_parameterisation(
         beta0 = fit$beta0,
         beta = fit$beta,
         lsigma = fit$lsigma,
         nbasis = basis$nbasis,
         k = fit$k,
-        alpha_index = alpha_index_new
+        psi_index = psi_index_new
     )
 
     opt_new <- list(
@@ -103,22 +103,22 @@ reparameterise_fit_without_optim <- function(fit, basis, data, sp, alpha_index_n
         basis = basis,
         sp = sp,
         data = data,
-        alpha_index = alpha_index_new
+        psi_index = psi_index_new
     )
 
     add_hessian_and_log_ml(fit_new, basis, data)
 }
 
-choose_alpha_index_from_beta_ci <- function(fit, basis, data, sp) {
+choose_psi_index_from_beta_ci <- function(fit, basis, data, sp) {
     candidates <- seq_len(basis$nbasis - fit$k + 1)
 
-    mods <- lapply(candidates, function(alpha_index) {
+    mods <- lapply(candidates, function(psi_index) {
         reparameterise_fit_without_optim(
             fit = fit,
             basis = basis,
             data = data,
             sp = sp,
-            alpha_index_new = alpha_index
+            psi_index_new = psi_index
         )
     })
 
@@ -134,7 +134,7 @@ choose_alpha_index_from_beta_ci <- function(fit, basis, data, sp) {
 
     if(all(!is.finite(scores))) {
         return(list(
-            alpha_index = fit$alpha_index,
+            psi_index = fit$psi_index,
             mod = fit,
             scores = scores,
             candidates = candidates
@@ -144,7 +144,7 @@ choose_alpha_index_from_beta_ci <- function(fit, basis, data, sp) {
     best <- which.max(scores)
 
     list(
-        alpha_index = candidates[best],
+        psi_index = candidates[best],
         mod = mods[[best]],
         scores = scores,
         candidates = candidates
@@ -152,10 +152,10 @@ choose_alpha_index_from_beta_ci <- function(fit, basis, data, sp) {
 }
 
 maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
-                                               alpha_tol = 1e-5,
-                                               alpha_ci_tol = 2,
-                                               auto_alpha = TRUE) {
-    if(!auto_alpha || fit$k <= 1) {
+                                               psi_tol = 1e-5,
+                                               psi_ci_tol = 2,
+                                               auto_psi = TRUE) {
+    if(!auto_psi || fit$k <= 1) {
         return(fit)
     }
 
@@ -166,20 +166,20 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
         fit$alpha,
         nbasis = basis$nbasis,
         k = fit$k,
-        alpha_index = fit$alpha_index
+        psi_index = fit$psi_index
     )
 
-    bad_point_chart <- point_diag$min_ratio < alpha_tol
+    bad_point <- point_diag$min_ratio < psi_tol
 
     ## If the fitted point/Hessian is bad, reoptimise in a better chart.
-    if(bad_hessian || bad_point_chart) {
-        alpha_index_new <- choose_alpha_index_from_beta(
+    if(bad_hessian || bad_point) {
+        psi_index_new <- choose_psi_index_from_beta(
             fit$beta,
             nbasis = basis$nbasis,
             k = fit$k
         )
 
-        if(alpha_index_new == fit$alpha_index) {
+        if(psi_index_new == fit$psi_index) {
             return(fit)
         }
 
@@ -189,7 +189,7 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
             lsigma = fit$lsigma,
             nbasis = basis$nbasis,
             k = fit$k,
-            alpha_index = alpha_index_new
+            psi_index = psi_index_new
         )
 
         fit_new <- fit_given_par0(
@@ -198,7 +198,7 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
             k = fit$k,
             par0 = par0_new,
             basis = basis,
-            alpha_index = alpha_index_new
+            psi_index = psi_index_new
         )
 
         return(add_hessian_and_log_ml(fit_new, basis, data))
@@ -206,39 +206,39 @@ maybe_reparameterise_after_hessian <- function(fit, data, sp, basis,
 
     ## Only use CI diagnostic when the Hessian is already usable.
     ci_diag <- householder_ci_diagnostic(fit)
-    bad_ci_chart <- ci_diag$min_z_to_boundary < alpha_ci_tol
+    bad_ci <- ci_diag$min_z_to_boundary < psi_ci_tol
 
-    if(!bad_ci_chart) {
-        fit$alpha_ci_diagnostic <- ci_diag
+    if(!bad_ci) {
+        fit$psi_ci_diagnostic <- ci_diag
         return(fit)
     }
 
-    choice <- choose_alpha_index_from_beta_ci(
+    choice <- choose_psi_index_from_beta_ci(
         fit = fit,
         basis = basis,
         data = data,
         sp = sp
     )
 
-    if(choice$alpha_index == fit$alpha_index) {
-        fit$alpha_ci_scores <- choice$scores
-        fit$alpha_ci_candidates <- choice$candidates
-        fit$alpha_ci_diagnostic <- ci_diag
+    if(choice$psi_index == fit$psi_index) {
+        fit$psi_ci_scores <- choice$scores
+        fit$psi_ci_candidates <- choice$candidates
+        fit$psi_ci_diagnostic <- ci_diag
         return(fit)
     }
 
-    choice$mod$alpha_ci_scores <- choice$scores
-    choice$mod$alpha_ci_candidates <- choice$candidates
-    choice$mod$alpha_ci_diagnostic <- householder_ci_diagnostic(choice$mod)
+    choice$mod$psi_ci_scores <- choice$scores
+    choice$mod$psi_ci_candidates <- choice$candidates
+    choice$mod$psi_ci_diagnostic <- householder_ci_diagnostic(choice$mod)
     
     choice$mod
 }
 
 
 maybe_reparameterise_and_refit <- function(fit, data, sp, basis,
-                                           alpha_tol = 1e-5,
-                                           auto_alpha = TRUE) {
-    if(!auto_alpha || fit$k <= 1) {
+                                           psi_tol = 1e-5,
+                                           auto_psi = TRUE) {
+    if(!auto_psi || fit$k <= 1) {
         return(fit)
     }
 
@@ -246,20 +246,20 @@ maybe_reparameterise_and_refit <- function(fit, data, sp, basis,
         fit$alpha,
         nbasis = basis$nbasis,
         k = fit$k,
-        alpha_index = fit$alpha_index
+        psi_index = fit$psi_index
     )
 
-    if(diag$min_ratio >= alpha_tol) {
+    if(diag$min_ratio >= psi_tol) {
         return(fit)
     }
 
-    alpha_index_new <- choose_alpha_index_from_beta(
+    psi_index_new <- choose_psi_index_from_beta(
         fit$beta,
         nbasis = basis$nbasis,
         k = fit$k
     )
 
-    if(alpha_index_new == fit$alpha_index) {
+    if(psi_index_new == fit$psi_index) {
         return(fit)
     }
 
@@ -269,7 +269,7 @@ maybe_reparameterise_and_refit <- function(fit, data, sp, basis,
         lsigma = fit$lsigma,
         nbasis = basis$nbasis,
         k = fit$k,
-        alpha_index = alpha_index_new
+        psi_index = psi_index_new
     )
 
     fit_given_par0(
@@ -278,25 +278,25 @@ maybe_reparameterise_and_refit <- function(fit, data, sp, basis,
         k = fit$k,
         par0 = par0_new,
         basis = basis,
-        alpha_index = alpha_index_new
+        psi_index = psi_index_new
     )
 }
 
 fit_given_start_beta <- function(data, sp, k,
                                  beta0, beta, lsigma,
                                  basis,
-                                 alpha_index = 1,
-                                 auto_alpha = TRUE,
-                                 alpha_tol = 1e-5) {
-    start <- maybe_switch_alpha_index_start(
+                                 psi_index = 1,
+                                 auto_psi = TRUE,
+                                 psi_tol = 1e-5) {
+    start <- maybe_switch_psi_index_start(
         beta0 = beta0,
         beta = beta,
         lsigma = lsigma,
         basis = basis,
         k = k,
-        alpha_index = alpha_index,
-        alpha_tol = alpha_tol,
-        auto_alpha = auto_alpha
+        psi_index = psi_index,
+        psi_tol = psi_tol,
+        auto_psi = auto_psi
     )
 
     fit <- fit_given_par0(
@@ -305,7 +305,7 @@ fit_given_start_beta <- function(data, sp, k,
         k = k,
         par0 = start$par0,
         basis = basis,
-        alpha_index = start$alpha_index
+        psi_index = start$psi_index
     )
 
     fit <- maybe_reparameterise_and_refit(
@@ -313,37 +313,37 @@ fit_given_start_beta <- function(data, sp, k,
         data = data,
         sp = sp,
         basis = basis,
-        alpha_tol = alpha_tol,
-        auto_alpha = auto_alpha
+        psi_tol = psi_tol,
+        auto_psi = auto_psi
     )
 
     fit
 }
 
-fit_given_par0 <- function(data, sp, k, par0, basis, alpha_index = 1) {
+fit_given_par0 <- function(data, sp, k, par0, basis, psi_index = 1) {
      opt <- stats::optim(par0, loglikelihood_pen, loglikelihood_pen_grad,
                          X = basis$X, y = data$y, c = data$c - 1,
-                         sp = sp, S = basis$S, K = k, alpha_index = alpha_index,
+                         sp = sp, S = basis$S, K = k, psi_index = psi_index,
                          method = "BFGS", control = list(fnscale = -1, maxit = 10000))
     if(opt$convergence != 0)
         warning("optim has not converged")
-     fit <- find_fit_info(opt, k, basis, sp, data, alpha_index)
+     fit <- find_fit_info(opt, k, basis, sp, data, psi_index)
 
      fit <- order_fit_components_by_lambda(fit, basis, data, sp)
      
      fit
 }
 
-fit_given_par0_nlm <- function(data, sp, k, par0, basis, alpha_index = 1) {
+fit_given_par0_nlm <- function(data, sp, k, par0, basis, psi_index = 1) {
     ml <- function(par) {
         result <- -loglikelihood_pen(par, X = basis$X, y = data$y,
                                      c = data$c - 1,
                                      sp = sp, S = basis$S,
-                                     K = k, alpha_index = alpha_index)
+                                     K = k, psi_index = psi_index)
         gr <- -loglikelihood_pen_grad(par,
                                       X = basis$X, y = data$y, c = data$c - 1,
                                       sp = sp, S = basis$S, K = k,
-                                      alpha_index = alpha_index)
+                                      psi_index = psi_index)
         attr(result, "gradient") <- gr
         result
     }
@@ -358,7 +358,7 @@ fit_given_par0_nlm <- function(data, sp, k, par0, basis, alpha_index = 1) {
 
 
 # Fit the mean-only model
-fit_0 <- function(data, sp, basis, alpha_index = 1) {
+fit_0 <- function(data, sp, basis, psi_index = 1) {
     X_0 <- basis$X
     
     Xt_y <- crossprod(X_0, data$y)
@@ -372,12 +372,12 @@ fit_0 <- function(data, sp, basis, alpha_index = 1) {
 
     par0 <- c(beta_0, log(sigma))
     
-    fit_given_par0(data, sp, 0, par0, basis, alpha_index)
+    fit_given_par0(data, sp, 0, par0, basis, psi_index)
 }
 
 find_start_beta_given_fit_km1 <- function(fit_km1, k, nbasis,
                                           fit_k_other_sp = NULL,
-                                          alpha_index = 1) {
+                                          psi_index = 1) {
     if(!is.null(fit_k_other_sp)) {
         return(list(
             beta0 = fit_k_other_sp$beta0,
@@ -392,12 +392,11 @@ find_start_beta_given_fit_km1 <- function(fit_km1, k, nbasis,
     if(k == 1) {
         alpha_start <- rep(0.01, nbasis)
     } else {
-        ## Express previous beta in the target alpha chart.
         alpha_km1 <- find_alpha_from_beta(
             fit_km1$beta,
             nbasis = nbasis,
             k = k - 1,
-            alpha_index = alpha_index
+            psi_index = psi_index
         )
 
         alpha_k0 <- rep(0.01, nbasis - k + 1)
@@ -409,7 +408,7 @@ find_start_beta_given_fit_km1 <- function(fit_km1, k, nbasis,
         alpha_start,
         nbasis = nbasis,
         k = k,
-        alpha_index = alpha_index
+        psi_index = psi_index
     )
 
     list(
@@ -421,15 +420,15 @@ find_start_beta_given_fit_km1 <- function(fit_km1, k, nbasis,
 
 fit_given_fit_km1 <- function(data, sp, k, fit_km1, basis,
                               fit_k_other_sp = NULL,
-                              alpha_index = 1,
-                              auto_alpha = TRUE,
-                              alpha_tol = 1e-5) {
+                              psi_index = 1,
+                              auto_psi = TRUE,
+                              psi_tol = 1e-5) {
     start <- find_start_beta_given_fit_km1(
         fit_km1 = fit_km1,
         k = k,
         nbasis = basis$nbasis,
         fit_k_other_sp = fit_k_other_sp,
-        alpha_index = alpha_index
+        psi_index = psi_index
     )
 
     fit_given_start_beta(
@@ -440,9 +439,9 @@ fit_given_fit_km1 <- function(data, sp, k, fit_km1, basis,
         beta = start$beta,
         lsigma = start$lsigma,
         basis = basis,
-        alpha_index = alpha_index,
-        auto_alpha = auto_alpha,
-        alpha_tol = alpha_tol
+        psi_index = psi_index,
+        auto_psi = auto_psi,
+        psi_tol = psi_tol
     )
 }
 
@@ -463,7 +462,7 @@ order_fit_components_by_lambda <- function(fit, basis, data, sp) {
         lsigma = fit$lsigma,
         nbasis = basis$nbasis,
         k = fit$k,
-        alpha_index = fit$alpha_index
+        psi_index = fit$psi_index
     )
 
     opt_new <- fit$opt
@@ -486,7 +485,7 @@ order_fit_components_by_lambda <- function(fit, basis, data, sp) {
         basis = basis,
         sp = sp,
         data = data,
-        alpha_index = fit$alpha_index
+        psi_index = fit$psi_index
     )
 }
 
@@ -515,10 +514,10 @@ is_k_larger_than_required <- function(mod, k_tol) {
 
 fits_given_sp <- function(sp, kmax, data, basis, k_tol,
                           fits_other_sp = NULL,
-                          alpha_index = 1,
-                          auto_alpha = TRUE,
-                          alpha_tol = 1e-5) {
-    fits <- list(fit_0(data, sp, basis, alpha_index))
+                          psi_index = 1,
+                          auto_psi = TRUE,
+                          psi_tol = 1e-5) {
+    fits <- list(fit_0(data, sp, basis, psi_index))
     for(k in 1:kmax) {
         if(length(fits_other_sp) > k)
             fit_k_other_sp <- fits_other_sp[[k+1]]
@@ -532,9 +531,9 @@ fits_given_sp <- function(sp, kmax, data, basis, k_tol,
             fit_km1 = fits[[k]],
             basis = basis,
             fit_k_other_sp = fit_k_other_sp,
-            alpha_index = alpha_index,
-            auto_alpha = auto_alpha,
-            alpha_tol = alpha_tol
+            psi_index = psi_index,
+            auto_psi = auto_psi,
+            psi_tol = psi_tol
         )
         
         if(k > 1)

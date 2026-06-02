@@ -9,26 +9,26 @@ split_alpha <- function(alpha, nbasis, k) {
     split(alpha, component)
 }
 
-hh_sign <- function(alpha, alpha_index) {
-    if (alpha[alpha_index] >= 0) 1 else -1
+hh_sign <- function(alpha, psi_index) {
+    if (alpha[psi_index] >= 0) 1 else -1
 }
 
-find_Hstar_mat <- function(alpha, alpha_index) {
+find_Hstar_mat <- function(alpha, psi_index) {
     alpha_norm <- sqrt(sum(alpha^2))
 
     u <- alpha
-    u[alpha_index] <- u[alpha_index] + hh_sign(alpha, alpha_index) * alpha_norm
+    u[psi_index] <- u[psi_index] + hh_sign(alpha, psi_index) * alpha_norm
 
     t <- sum(u^2)
     
     gamma <- 2 / t
 
     H <- diag(nrow = length(u)) - gamma * outer(u, u)
-    H[ , -alpha_index, drop = FALSE]
+    H[ , -psi_index, drop = FALSE]
 }
 
 
-find_T_list <- function(alpha, nbasis, k, alpha_index = 1) {
+find_T_list <- function(alpha, nbasis, k, psi_index = 1) {
     alpha_list <- split_alpha(alpha, nbasis, k)
 
     T_list <- list()
@@ -37,7 +37,7 @@ find_T_list <- function(alpha, nbasis, k, alpha_index = 1) {
     
     if(k > 1) {
         for(j in 2:k) {
-            T_list[[j]] <- T_list[[j-1]] %*% find_Hstar_mat(alpha_list[[j-1]], alpha_index)
+            T_list[[j]] <- T_list[[j-1]] %*% find_Hstar_mat(alpha_list[[j-1]], psi_index)
         }
     }
     
@@ -46,23 +46,23 @@ find_T_list <- function(alpha, nbasis, k, alpha_index = 1) {
 
 
 ## TODO:: could get transform from C++ code instead
-find_Hstar <- function(alpha, alpha_index) {
+find_Hstar <- function(alpha, psi_index) {
     alpha_norm <- sqrt(sum(alpha^2))
 
     u <- alpha
-    u[alpha_index] <- u[alpha_index] + hh_sign(alpha, alpha_index) * alpha_norm
+    u[psi_index] <- u[psi_index] + hh_sign(alpha, psi_index) * alpha_norm
     t <- sum(u^2)
     gamma <- 2 / t
     
-    list(u = u, gamma = gamma, alpha_index = alpha_index)
+    list(u = u, gamma = gamma, psi_index = psi_index)
 }
 
 
 find_Hstar_x <- function(Hstar, x) {
-    alpha_index <- Hstar$alpha_index
+    psi_index <- Hstar$psi_index
 
     x_ext <- numeric(length(x) + 1)
-    x_ext[-alpha_index] <- x
+    x_ext[-psi_index] <- x
 
     a <- sum(Hstar$u * x_ext)
 
@@ -81,7 +81,7 @@ find_beta_i <- function(alpha_i, Hstar_list) {
     s_j
 }
 
-find_beta <- function(alpha, nbasis, k, alpha_index = 1) {
+find_beta <- function(alpha, nbasis, k, psi_index = 1) {
     component <- find_alpha_components(nbasis, k)
     Hstar_list <- list()
     beta <- matrix(nrow = nbasis, ncol = k)
@@ -89,8 +89,8 @@ find_beta <- function(alpha, nbasis, k, alpha_index = 1) {
     for(i in 1:k) {
         alpha_i <- alpha[component == i]
 
-        if(alpha_index < 1 || alpha_index > length(alpha_i)) {
-            stop("alpha_index must be between 1 and the length of each alpha block")
+        if(psi_index < 1 || psi_index > length(alpha_i)) {
+            stop("psi_index must be between 1 and the length of each alpha block")
         }
         
         if(i == 1)
@@ -101,14 +101,14 @@ find_beta <- function(alpha, nbasis, k, alpha_index = 1) {
         beta[,i] <- beta_i
 
         if(i < k) {
-            Hstar_list[[i]] <- find_Hstar(alpha_i, alpha_index)
+            Hstar_list[[i]] <- find_Hstar(alpha_i, psi_index)
         }
     }
     beta
 }
 
 householder_diagnostic <- function(alpha, nbasis, k,
-                                   alpha_index = 1,
+                                   psi_index = 1,
                                    eps = .Machine$double.eps) {
     if(k <= 1) {
         return(list(
@@ -116,7 +116,7 @@ householder_diagnostic <- function(alpha, nbasis, k,
             ratios = numeric(0),
             alpha_norms = numeric(0),
             alpha_selected = numeric(0),
-            alpha_index = alpha_index
+            psi_index = psi_index
         ))
     }
     alpha_list <- split_alpha(alpha, nbasis, k)
@@ -126,7 +126,7 @@ householder_diagnostic <- function(alpha, nbasis, k,
     alpha_used <- alpha_list[seq_len(k - 1)]
 
     alpha_norms <- vapply(alpha_used, function(a) sqrt(sum(a^2)), numeric(1))
-    alpha_selected <- vapply(alpha_used, function(a) a[alpha_index], numeric(1))
+    alpha_selected <- vapply(alpha_used, function(a) a[psi_index], numeric(1))
 
     ratios <- abs(alpha_selected) / pmax(alpha_norms, eps)
 
@@ -135,7 +135,7 @@ householder_diagnostic <- function(alpha, nbasis, k,
         ratios = ratios,
         alpha_norms = alpha_norms,
         alpha_selected = alpha_selected,
-        alpha_index = alpha_index
+        psi_index = psi_index
     )
 }
 
@@ -146,7 +146,7 @@ householder_ci_diagnostic <- function(mod, eps = .Machine$double.eps) {
             z_to_boundary = numeric(0),
             selected_alpha = numeric(0),
             selected_se = numeric(0),
-            alpha_index = mod$alpha_index
+            psi_index = mod$psi_index
         ))
     }
     
@@ -166,7 +166,7 @@ householder_ci_diagnostic <- function(mod, eps = .Machine$double.eps) {
     )
 
     selected_alpha_positions <- vapply(seq_len(mod$k - 1), function(j) {
-        alpha_start + alpha_components[[j]][mod$alpha_index] - 1
+        alpha_start + alpha_components[[j]][mod$psi_index] - 1
     }, numeric(1))
 
     selected_alpha <- mod$par[selected_alpha_positions]
@@ -179,11 +179,11 @@ householder_ci_diagnostic <- function(mod, eps = .Machine$double.eps) {
         z_to_boundary = z_to_boundary,
         selected_alpha = selected_alpha,
         selected_se = selected_se,
-        alpha_index = mod$alpha_index
+        psi_index = mod$psi_index
     )
 }
 
-find_alpha_from_beta <- function(beta, nbasis, k, alpha_index = 1) {
+find_alpha_from_beta <- function(beta, nbasis, k, psi_index = 1) {
     if(is.vector(beta)) {
         beta <- matrix(beta, nrow = nbasis, ncol = k)
     }
@@ -205,37 +205,37 @@ find_alpha_from_beta <- function(beta, nbasis, k, alpha_index = 1) {
         alpha_list[[i]] <- x
 
         if(i < k) {
-            Hstar_list[[i]] <- find_Hstar_mat(x, alpha_index)
+            Hstar_list[[i]] <- find_Hstar_mat(x, psi_index)
         }
     }
 
     unlist(alpha_list, use.names = FALSE)
 }
-
-choose_alpha_index_from_beta <- function(beta, nbasis, k) {
+ 
+choose_psi_index_from_beta <- function(beta, nbasis, k) {
     if(k <= 1) {
         return(1)
     }
 
     candidates <- seq_len(nbasis - k + 1)
 
-    scores <- sapply(candidates, function(alpha_index) {
+    scores <- sapply(candidates, function(psi_index) {
         alpha <- find_alpha_from_beta(beta, nbasis = nbasis,
-                                      k = k, alpha_index = alpha_index)
+                                      k = k, psi_index = psi_index)
 
         householder_diagnostic(alpha, nbasis = nbasis, k = k,
-                               alpha_index = alpha_index)$min_ratio
+                               psi_index = psi_index)$min_ratio
     })
 
     candidates[which.max(scores)]
 }
 
 par_from_beta_parameterisation <- function(beta0, beta, lsigma,
-                                           nbasis, k, alpha_index) {
+                                           nbasis, k, psi_index) {
     alpha <- find_alpha_from_beta(beta,
                                   nbasis = nbasis,
                                   k = k,
-                                  alpha_index = alpha_index)
+                                  psi_index = psi_index)
 
     c(beta0, alpha, lsigma)
 }
@@ -246,40 +246,40 @@ start_from_fit_beta <- function(fit) {
          lsigma = fit$lsigma)
 }
 
-maybe_switch_alpha_index_start <- function(beta0, beta, lsigma,
-                                           basis, k,
-                                           alpha_index = 1,
-                                           alpha_tol = 1e-5,
-                                           auto_alpha = TRUE) {
+maybe_switch_psi_index_start <- function(beta0, beta, lsigma,
+                                         basis, k,
+                                         psi_index = 1,
+                                         psi_tol = 1e-5,
+                                         auto_psi = TRUE) {
     nbasis <- basis$nbasis
     
-    if(alpha_index > basis$nbasis - k + 1) {
-        alpha_index <- 1
+    if(psi_index > basis$nbasis - k + 1) {
+        psi_index <- 1
     }
     
     alpha <- find_alpha_from_beta(beta,
                                   nbasis = nbasis,
                                   k = k,
-                                  alpha_index = alpha_index)
+                                  psi_index = psi_index)
 
-    if(auto_alpha && k > 1) {
+    if(auto_psi && k > 1) {
         diag <- householder_diagnostic(alpha,
                                        nbasis = nbasis,
                                        k = k,
-                                       alpha_index = alpha_index)
+                                       psi_index = psi_index)
 
-        if(diag$min_ratio < alpha_tol) {
-            alpha_index <- choose_alpha_index_from_beta(beta, nbasis, k)
+        if(diag$min_ratio < psi_tol) {
+            psi_index <- choose_psi_index_from_beta(beta, nbasis, k)
 
             alpha <- find_alpha_from_beta(beta,
                                           nbasis = nbasis,
                                           k = k,
-                                          alpha_index = alpha_index)
+                                          psi_index = psi_index)
         }
     }
 
     list(par0 = c(beta0, alpha, lsigma),
-         alpha_index = alpha_index)
+         psi_index = psi_index)
 }
 
 order_beta_by_lambda <- function(beta) {

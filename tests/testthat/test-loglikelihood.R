@@ -37,7 +37,7 @@ test_that("derivatives of loglikelihood are correct", {
 
 })
 
-test_that("same beta with different alpha_index gives same penalised log-likelihood", {
+test_that("same beta with different psi_index gives same penalised log-likelihood", {
     data <- generate_test_data_1()$data
     
     nbasis <- 5
@@ -62,8 +62,8 @@ test_that("same beta with different alpha_index gives same penalised log-likelih
     theta_2 <- c(beta0, alpha_2, lsigma)
 
     sp <- 1
-    l_1 <- loglikelihood_pen(theta_1, basis$X, data$y, data$c - 1, sp, basis$S, k, alpha_index = 1)
-    l_2 <- loglikelihood_pen(theta_2, basis$X, data$y, data$c - 1, sp, basis$S, k, alpha_index = 2)
+    l_1 <- loglikelihood_pen(theta_1, basis$X, data$y, data$c - 1, sp, basis$S, k, psi_index = 1)
+    l_2 <- loglikelihood_pen(theta_2, basis$X, data$y, data$c - 1, sp, basis$S, k, psi_index = 2)
 
     expect_equal(l_1, l_2)
 
@@ -102,7 +102,7 @@ test_that("checking for discontinuities", {
             sp = sp,
             S = S,
             K = K,
-            alpha_index = 1
+            psi_index = 1
         )
     }
     

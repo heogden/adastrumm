@@ -31,16 +31,14 @@ normalise_data <- function(data, norm = NULL) {
 #' @param lsp_poss The grid of possible values to consider for
 #'     log(gamma), the log of the smoothing parameter.
 #' @param trace If TRUE, print out extra information.
-#' @param alpha_index Initial Householder reference coordinate to use
-#'     for the alpha parameterisation. Defaults to 1.
-#' @param auto_alpha Logical; if TRUE, automatically switches alpha
-#'     parameterisation when the current Householder chart appears
-#'     poorly conditioned.
-#' @param alpha_tol Threshold for the Householder diagnostic used to
-#'     trigger automatic alpha-parameterisation switching.
-#' @param alpha_ci_tol Threshold for the Householder confidence
-#'     interval diagnostic used to trigger automatic
-#'     alpha-parameterisation switching.
+#' @param psi_index Initial index for the choice of psi
+#'     parameterisation. Defaults to 1.
+#' @param auto_psi Logical; if TRUE, automatically switches psi-
+#'     parameterisation when diagnostics indicate switching is needed.
+#' @param psi_tol Threshold for the diagnostic used to trigger
+#'     automatic psi-parameterisation switching.
+#' @param psi_ci_tol Threshold for the confidence interval diagnostic
+#'     used to trigger automatic psi-parameterisation switching.
 #' @param normalise Logical; if TRUE, automatically normalise the data
 #'     (response and covariate) to mean 0, variance 1.
 #' @return The fitted model.
@@ -51,20 +49,20 @@ normalise_data <- function(data, norm = NULL) {
 #' @export
 fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
                           lsp_poss = -5:15, trace = FALSE,
-                          alpha_index = 1,
-                          auto_alpha = TRUE,
-                          alpha_tol = 1e-5,
-                          alpha_ci_tol = 2,
+                          psi_index = 1,
+                          auto_psi = TRUE,
+                          psi_tol = 1e-5,
+                          psi_ci_tol = 2,
                           normalise = TRUE) {
     if(any(is.na(data)))
         stop("There are missing values in the data, which adastrumm cannot handle")
 
-    if(alpha_index != as.integer(alpha_index) || alpha_index < 1) {
-        stop("alpha_index must be a positive integer")
+    if(psi_index != as.integer(psi_index) || psi_index < 1) {
+        stop("psi_index must be a positive integer")
 }
 
-    if(alpha_index > nbasis) {
-        stop("alpha_index must be no larger than nbasis")
+    if(psi_index > nbasis) {
+        stop("psi_index must be no larger than nbasis")
     }
 
     
@@ -101,9 +99,9 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
             basis = basis,
             k_tol = k_tol,
             fits_other_sp = fits_other_sp,
-            alpha_index = alpha_index,
-            auto_alpha = auto_alpha,
-            alpha_tol = alpha_tol
+            psi_index = psi_index,
+            auto_psi = auto_psi,
+            psi_tol = psi_tol
         )
 
         
@@ -125,9 +123,9 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
             data = data,
             sp = sp,
             basis = basis,
-            alpha_tol = alpha_tol,
-            alpha_ci_tol = alpha_ci_tol,
-            auto_alpha = auto_alpha
+            psi_tol = psi_tol,
+            psi_ci_tol = psi_ci_tol,
+            auto_psi = auto_psi
         )
 
         fits[[fit$k + 1]] <- fit
@@ -136,9 +134,9 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
         if(!is_neg_def(fit$hessian) | matrixcalc::is.singular.matrix(fit$hessian)) {
             message("fit from optim gave non-negative definite or singular Hessian. Trying with nlm. ")
             opt <- NULL
-            try(opt <- fit_given_par0_nlm(data, sp, fit$k, fit$par, basis, fit$alpha_index))
+            try(opt <- fit_given_par0_nlm(data, sp, fit$k, fit$par, basis, fit$psi_index))
             if(length(opt) > 0) {    
-                fit <- find_fit_info(opt, fit$k, basis, sp, data, fit$alpha_index)
+                fit <- find_fit_info(opt, fit$k, basis, sp, data, fit$psi_index)
                 fit <- order_fit_components_by_lambda(fit, basis, data, sp)
                 fit <- add_hessian_and_log_ml(fit, basis, data)
                 fit <- maybe_reparameterise_after_hessian(
@@ -146,9 +144,9 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
                     data = data,
                     sp = sp,
                     basis = basis,
-                    alpha_tol = alpha_tol,
-                    alpha_ci_tol = alpha_ci_tol,
-                    auto_alpha = auto_alpha
+                    psi_tol = psi_tol,
+                    psi_ci_tol = psi_ci_tol,
+                    auto_psi = auto_psi
                 )
                 fits[[fit$k + 1]] <- fit
                 fits_list[[i]] <- fits
@@ -164,9 +162,9 @@ fit_adastrumm <- function(data, nbasis = 10, kmax = 10, k_tol = 1e-4,
                         data = data,
                         sp = sp,
                         basis = basis,
-                        alpha_tol = alpha_tol,
-                        alpha_ci_tol = alpha_ci_tol,
-                        auto_alpha = auto_alpha
+                        psi_tol = psi_tol,
+                        psi_ci_tol = psi_ci_tol,
+                        auto_psi = auto_psi
                     )
                     fits[[fit$k + 1]] <- fit
                     fits_list[[i]] <- fits

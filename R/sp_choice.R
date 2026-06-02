@@ -1,7 +1,7 @@
 correct_lprior_alpha <- function(fit, basis) {
     k <- fit$k
     if(k > 1) {
-        T_list <- find_T_list(fit$alpha, basis$nbasis, fit$k, fit$alpha_index)
+        T_list <- find_T_list(fit$alpha, basis$nbasis, fit$k, fit$psi_index)
     }
     
     S <- basis$S

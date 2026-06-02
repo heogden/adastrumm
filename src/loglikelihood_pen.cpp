@@ -11,13 +11,13 @@ using namespace Rcpp;
 
 template <typename T>
 Eigen::Matrix<T, Eigen::Dynamic, 1> find_u(const Eigen::Matrix<T, Eigen::Dynamic, 1>& alpha,
-					   size_t alpha_index0) {
+					   size_t psi_index0) {
   T alpha_norm = stan::math::sqrt(stan::math::dot_self(alpha));
   Eigen::Matrix<T, Eigen::Dynamic, 1> u = alpha;
 
-  double s = (stan::math::value_of(alpha(alpha_index0)) >= 0.0) ? 1.0 : -1.0;
+  double s = (stan::math::value_of(alpha(psi_index0)) >= 0.0) ? 1.0 : -1.0;
 
-  u(alpha_index0) += s * alpha_norm;
+  u(psi_index0) += s * alpha_norm;
   
   return u;
 }
@@ -32,16 +32,16 @@ T find_gamma(const Eigen::Matrix<T, Eigen::Dynamic, 1>& u) {
 template <typename T> struct HouseholderReduced {
   // members
   const size_t n_rows; // the matrix version has n_rows rows and n_rows -1 columns
-  const size_t alpha_index0;
+  const size_t psi_index0;
   const Eigen::Matrix<T, Eigen::Dynamic, 1> u;
   const T gamma;
   
   // constructor
   HouseholderReduced(const Eigen::Matrix<T, Eigen::Dynamic, 1>& alpha,
-		     size_t alpha_index0_):
+		     size_t psi_index0_):
     n_rows(alpha.size()),
-    alpha_index0(alpha_index0_),
-    u(find_u(alpha, alpha_index0)),
+    psi_index0(psi_index0_),
+    u(find_u(alpha, psi_index0)),
     gamma(find_gamma(u))
   {
   }
@@ -51,9 +51,9 @@ template <typename T> struct HouseholderReduced {
     Eigen::Matrix<T, Eigen::Dynamic, 1> x_ext(x.size() + 1);
 
      for(size_t i = 0; i < n_rows; ++i) {
-      if(i < alpha_index0) {
+      if(i < psi_index0) {
         x_ext(i) = x(i);
-      } else if(i == alpha_index0) {
+      } else if(i == psi_index0) {
         x_ext(i) = 0;
       } else {
         x_ext(i) = x(i - 1);
@@ -71,15 +71,15 @@ template <typename T>
 Eigen::Matrix<T, Eigen::Dynamic, 1> find_beta(const Eigen::Matrix<T, Eigen::Dynamic, 1>& alpha,
 					      size_t K,
 					      size_t n_B,
-					      size_t alpha_index0) {
+					      size_t psi_index0) {
   std::vector<HouseholderReduced<T> > Hstar_vec;
   Eigen::Matrix<T, Eigen::Dynamic, 1> beta(K * n_B);
   
   for(size_t k = 0; k < K; ++k) {
     Eigen::Matrix<T, Eigen::Dynamic, 1> alpha_k = alpha.segment(k * n_B - k * (k-1) / 2, n_B - k);
 
-    if(alpha_index0 >= static_cast<size_t>(alpha_k.size())) {
-      throw std::runtime_error("alpha_index0 is out of range for this alpha block");
+    if(psi_index0 >= static_cast<size_t>(alpha_k.size())) {
+      throw std::runtime_error("psi_index0 is out of range for this alpha block");
     }
 
     
@@ -91,7 +91,7 @@ Eigen::Matrix<T, Eigen::Dynamic, 1> find_beta(const Eigen::Matrix<T, Eigen::Dyna
     beta.segment(n_B * k, n_B) = beta_k;
 
     if (k < K - 1) {
-      HouseholderReduced<T> Hstar_k(alpha_k, alpha_index0);
+      HouseholderReduced<T> Hstar_k(alpha_k, psi_index0);
       Hstar_vec.push_back(Hstar_k);
     }
   
@@ -131,15 +131,15 @@ struct loglikp_func {
   double sp;
   Eigen::MatrixXd S;
   const size_t K;
-  const size_t alpha_index0;
+  const size_t psi_index0;
 
   // constructor
-  loglikp_func(Eigen::MatrixXd& X, Eigen::VectorXd& y, std::vector<int>& c, double sp_, Eigen::MatrixXd& S_, size_t K_, size_t alpha_index0_):
+  loglikp_func(Eigen::MatrixXd& X, Eigen::VectorXd& y, std::vector<int>& c, double sp_, Eigen::MatrixXd& S_, size_t K_, size_t psi_index0_):
     n_B(X.cols()),
     sp(sp_),
     S(S_),
     K(K_),
-    alpha_index0(alpha_index0_)
+    psi_index0(psi_index0_)
   {
     auto d = max_element(c.begin(), c.end());
     clusters.resize(*d + 1);
@@ -160,7 +160,7 @@ struct loglikp_func {
 
     // The correct number of alpha parameters is K * n_B - K * (K - 1) / 2
     Eigen::Matrix<T, Eigen::Dynamic, 1> alpha = theta.segment(n_B, K * n_B - K * (K - 1) / 2);
-    Eigen::Matrix<T, Eigen::Dynamic, 1> beta = find_beta(alpha, K, n_B, alpha_index0);
+    Eigen::Matrix<T, Eigen::Dynamic, 1> beta = find_beta(alpha, K, n_B, psi_index0);
     
     std::vector<T> l_contribs;
     
@@ -228,14 +228,14 @@ double loglikelihood_pen(Eigen::VectorXd theta,
 			 double sp,
 			 Eigen::MatrixXd S,
 			 size_t K,
-			 size_t alpha_index) {
-  if(alpha_index < 1) {
-    throw std::runtime_error("alpha_index must be at least 1");
+			 size_t psi_index) {
+  if(psi_index < 1) {
+    throw std::runtime_error("psi_index must be at least 1");
   }
   
-  size_t alpha_index0 = alpha_index - 1;
+  size_t psi_index0 = psi_index - 1;
   
-  loglikp_func lf(X, y, c, sp, S, K, alpha_index0);
+  loglikp_func lf(X, y, c, sp, S, K, psi_index0);
   return lf(theta);
 }
 
@@ -248,18 +248,18 @@ NumericVector loglikelihood_pen_grad(Eigen::VectorXd theta,
 				     double sp,
 				     Eigen::MatrixXd S,
 				     size_t K,
-				     size_t alpha_index) {
-  if(alpha_index < 1) {
-    throw std::runtime_error("alpha_index must be at least 1");
+				     size_t psi_index) {
+  if(psi_index < 1) {
+    throw std::runtime_error("psi_index must be at least 1");
   }
   
-  size_t alpha_index0 = alpha_index - 1;
+  size_t psi_index0 = psi_index - 1;
   
   // declarations
   double l;
   Eigen::VectorXd grad_l;
 
-  loglikp_func lf(X, y, c, sp, S, K, alpha_index0);
+  loglikp_func lf(X, y, c, sp, S, K, psi_index0);
 
   stan::math::gradient(lf, theta, l, grad_l);
 
@@ -279,19 +279,19 @@ NumericVector loglikelihood_pen_hess(Eigen::VectorXd theta,
 				     double sp,
 				     Eigen::MatrixXd S,
 				     size_t K,
-				     size_t alpha_index) {
-  if(alpha_index < 1) {
-    throw std::runtime_error("alpha_index must be at least 1");
+				     size_t psi_index) {
+  if(psi_index < 1) {
+    throw std::runtime_error("psi_index must be at least 1");
   }
   
-  size_t alpha_index0 = alpha_index - 1;
+  size_t psi_index0 = psi_index - 1;
   
   // declarations
   double l;
   Eigen::VectorXd grad_l;
   Eigen::MatrixXd hess_l;
 
-  loglikp_func lf(X, y, c, sp, S, K, alpha_index0);
+  loglikp_func lf(X, y, c, sp, S, K, psi_index0);
 
   stan::math::hessian(lf, theta, l, grad_l, hess_l);
 

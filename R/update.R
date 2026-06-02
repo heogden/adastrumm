@@ -17,9 +17,9 @@ update_adastrumm <- function(data, prev_fit, fix_tuning = TRUE, fix_pop_par = FA
     basis <- update_basis(prev_fit$basis, data$x)
     
     if(fix_pop_par) {
-        fit <- find_fit_info(prev_fit$opt, prev_fit$k, basis, prev_fit$sp, data, alpha_index = prev_fit$alpha_index)
+        fit <- find_fit_info(prev_fit$opt, prev_fit$k, basis, prev_fit$sp, data, psi_index = prev_fit$psi_index)
     } else {
-        fit <- fit_given_par0(data, prev_fit$sp, prev_fit$k, prev_fit$par, basis, alpha_index = prev_fit$alpha_index)
+        fit <- fit_given_par0(data, prev_fit$sp, prev_fit$k, prev_fit$par, basis, psi_index = prev_fit$psi_index)
         
     }
     fit$norm <- prev_fit$norm
