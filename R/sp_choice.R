@@ -31,6 +31,8 @@ make_P_beta <- function(fit, basis) {
 }
 
 approx_log_ml <- function(fit, hessian, basis) {
+    k <- fit$k
+    
     J_zeta <- make_J_zeta(fit, basis)
     G_zeta <- t(J_zeta) %*% J_zeta
     G_zeta <- (G_zeta + t(G_zeta)) / 2
@@ -50,5 +52,7 @@ approx_log_ml <- function(fit, hessian, basis) {
     fit$l_pen +
         0.5 * P_rel$log_det -
         0.5 * H_rel$log_det +
-        0.5 * P_rel$null_dim * log(2 * pi)
+        0.5 * P_rel$null_dim * log(2 * pi) -
+        lfactorial(k) -
+        k * log(2)
 }
