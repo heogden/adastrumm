@@ -44,9 +44,6 @@ test_that("jac_beta_alpha matches numerical Jacobian", {
 
     for(nbasis in c(5, 8)) {
         for(k in 1:3) {
-            nbasis <- case$nbasis
-            k <- case$k
-
             n_alpha <- sum(nbasis - 0:(k - 1))
             alpha <- rnorm(n_alpha, sd = 0.2)
 
