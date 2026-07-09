@@ -557,7 +557,7 @@ is_k_larger_than_required <- function(mod,
 
     ## Absolute-size rule: remove the final component if it is too small
     ## to retain stably.
-    if (length(lambda) > 0 && tail(lambda, 1) <= lambda_tol) {
+    if (length(lambda) > 0 && utils::tail(lambda, 1) <= lambda_tol) {
         return(TRUE)
     }
 

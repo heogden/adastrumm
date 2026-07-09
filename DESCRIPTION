@@ -25,6 +25,7 @@ Imports:
     RcppParallel,
     tidyr
 Suggests:
+    dplyr,	
     lme4,
     numDeriv,
     refund,
