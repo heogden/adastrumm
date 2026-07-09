@@ -1,6 +1,6 @@
 Package: adastrumm
 Title: Fit an Adaptively-Structured Mixed Model to Simple Clustered Data
-Version: 0.1.0.9000
+Version: 0.2.0
 Authors@R: 
     person("Helen", "Ogden", email = "heogden12@gmail.com",
                        role = c("aut", "cre"),
