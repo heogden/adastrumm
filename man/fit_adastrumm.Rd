@@ -28,6 +28,13 @@ individual subjects), x (the time) and y (the response).}
 \item{kmax}{The maximum number of random effect components to
 allow.}
 
+\item{k_tol}{A tolerance to use in selecting k, to explain at
+least 1-k_tol of the variation in trajectories.}
+
+\item{lambda_tol}{Another tolerance to use in selecting k: any
+random effect components with variance less than lambda_tol are
+removed.}
+
 \item{lsp_poss}{The grid of possible values to consider for
 log(gamma), the log of the smoothing parameter.}
 
@@ -47,13 +54,6 @@ used to trigger automatic psi-parameterisation switching.}
 
 \item{normalise}{Logical; if TRUE, automatically normalise the data
 (response and covariate) to mean 0, variance 1.}
-
-\item{k_tol.}{A tolerance to use in selecting k, to explain at
-least 1-k_tol of the variation in trajectories.}
-
-\item{lambda_tol.}{Another tolerance to use in selecting k: any
-random effect components with variance less than lambda_tol are
-removed.}
 }
 \value{
 The fitted model.

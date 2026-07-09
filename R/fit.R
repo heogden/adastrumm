@@ -26,9 +26,9 @@ normalise_data <- function(data, norm = NULL) {
 #' @param nbasis The number of spline basis functions.
 #' @param kmax The maximum number of random effect components to
 #'     allow.
-#' @param k_tol. A tolerance to use in selecting k, to explain at
+#' @param k_tol A tolerance to use in selecting k, to explain at
 #'     least 1-k_tol of the variation in trajectories.
-#' @param lambda_tol. Another tolerance to use in selecting k: any
+#' @param lambda_tol Another tolerance to use in selecting k: any
 #'     random effect components with variance less than lambda_tol are
 #'     removed.
 #' @param lsp_poss The grid of possible values to consider for
