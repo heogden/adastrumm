@@ -56,8 +56,8 @@ ggplot(data, aes(x = x, y = y)) +
     ylab("Response")
 ```
 
-<img src="man/figures/README-unnamed-chunk-4-1.png" width="100%" /> We
-can then fit the model using adastrumm:
+<img src="man/figures/README-unnamed-chunk-4-1.png" alt="" width="100%" />
+We can then fit the model using adastrumm:
 
 ``` r
 mod <- fit_adastrumm(data)
@@ -83,7 +83,7 @@ ggplot(pred_data, aes(x = x)) +
     ylab("Subject-specific mean")
 ```
 
-<img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
+<img src="man/figures/README-unnamed-chunk-6-1.png" alt="" width="100%" />
 
 In this simulated example, the fitted mean curves (solid lines) and the
 true mean curves (dashed lines) match closely. The confidence intervals
