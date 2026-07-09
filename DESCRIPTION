@@ -5,7 +5,11 @@ Authors@R:
     person("Helen", "Ogden", email = "heogden12@gmail.com",
                        role = c("aut", "cre"),
                        comment = c(ORCID = "0000-0001-7204-9776"))
-Description: What the package does (one paragraph).
+Description: Implements adaptively-structured mixed models for simple
+    clustered data. These models estimate a flexible population mean
+    function and learn a low-dimensional random-effects structure from the
+    data, allowing individual trajectories and population-level variation to
+    be estimated without pre-specifying the form of the random effects.
 License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
