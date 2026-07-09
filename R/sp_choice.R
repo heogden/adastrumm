@@ -13,8 +13,7 @@ make_J_zeta <- function(fit, basis) {
         psi_index = fit$psi_index
     )
 
-    Matrix::bdiag(diag(nbasis), J_alpha) |>
-        as.matrix()
+    as.matrix(Matrix::bdiag(diag(nbasis), J_alpha))
 }
 
 make_P_beta <- function(fit, basis) {
@@ -24,8 +23,7 @@ make_P_beta <- function(fit, basis) {
     ## Penalty on beta0, beta1, ..., betaK
     S_blocks <- replicate(k + 1, basis$S, simplify = FALSE)
 
-    P0 <- Matrix::bdiag(S_blocks) |>
-        as.matrix()
+    P0 <- as.matrix(Matrix::bdiag(S_blocks))
 
     (fit$sp / fit$sigma^2) * P0
 }
